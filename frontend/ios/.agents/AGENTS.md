@@ -23,7 +23,6 @@ make dev
   - Midnight Slate (`#0B0F19`), Warm Charcoal (`#161B26`), Elevated Card (`#1E2536`).
   - Sage Healing Green (`#34D399`), Calming Cyan (`#38BDF8`), Muted Lavender (`#A78BFA`).
 - Follow zero-anxiety UI principles: gentle transitions, no jarring alerts, soft pulsing indicators, respectful copy.
-- Enforce Zero-PII client requirements: anonymous users have only random pseudonyms/aliases and procedural avatars via `AvatarCircleView`.
 - Maintain calming breathing pacing (3.0s–4.0s easing duration) for ambient pulsing aura indicators.
 - Omit legacy `UIApplicationSceneManifest` in `Info.plist` when using pure SwiftUI `@main struct App` lifecycle to prevent empty white scene initialization.
 - Store anonymous session tokens and keys securely in iOS Keychain via `kSecClassGenericPassword`.
@@ -34,7 +33,6 @@ make dev
 - Introducing third-party Swift Package dependencies beyond `livekit-client-swift`.
 
 ### Never do
-- Prompt clients for PII (real names, emails, phone numbers, or social logins) in client flows.
 - Use UIKit wrappers when native SwiftUI equivalents are available in iOS 17+.
 - Hardcode raw colors in views; always reference `ColorPalette`.
 - Store credentials, tokens, or private keys in `UserDefaults`.

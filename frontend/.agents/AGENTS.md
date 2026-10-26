@@ -28,4 +28,3 @@ make build
 
 ## Boundaries
 - Always read the respective `.agents/AGENTS.md` file inside `frontend/web/`, `frontend/ios/`, or `frontend/android/` before modifying client-specific code.
-- Enforce Zero-PII across all client implementations.

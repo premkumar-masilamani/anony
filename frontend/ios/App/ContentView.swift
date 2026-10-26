@@ -3,8 +3,27 @@ import AnonyCore
 
 struct ContentView: View {
     @State private var selectedTab: Int = 0
+    @State private var isAuthenticated: Bool = IdentityService.shared.hasActiveSession()
 
     var body: some View {
+        Group {
+            if isAuthenticated {
+                authenticatedMainView
+            } else {
+                RegistrationView { _ in
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        isAuthenticated = true
+                    }
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+        .onAppear {
+            isAuthenticated = IdentityService.shared.hasActiveSession()
+        }
+    }
+
+    private var authenticatedMainView: some View {
         ZStack {
             ColorPalette.midnightSlate
                 .ignoresSafeArea()
@@ -23,8 +42,15 @@ struct ContentView: View {
                 // Tab content
                 #if os(iOS)
                 TabView(selection: $selectedTab) {
-                    VisualTemplates.SanctuaryView()
-                        .tag(0)
+                    VisualTemplates.SanctuaryView(
+                        onLogout: {
+                            _ = IdentityService.shared.clearSession()
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                isAuthenticated = false
+                            }
+                        }
+                    )
+                    .tag(0)
 
                     VisualTemplates.DesignSystemGalleryView()
                         .tag(1)
@@ -33,7 +59,14 @@ struct ContentView: View {
                 #else
                 Group {
                     if selectedTab == 0 {
-                        VisualTemplates.SanctuaryView()
+                        VisualTemplates.SanctuaryView(
+                            onLogout: {
+                                _ = IdentityService.shared.clearSession()
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    isAuthenticated = false
+                                }
+                            }
+                        )
                     } else {
                         VisualTemplates.DesignSystemGalleryView()
                     }
@@ -42,7 +75,6 @@ struct ContentView: View {
                 #endif
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     private func navTabButton(title: String, systemImage: String, index: Int) -> some View {
