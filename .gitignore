@@ -1,0 +1,29 @@
+# OS generated files
+**/.DS_Store
+**/Thumbs.db
+
+# Environment and local secrets
+.env
+
+# IDE configuration files
+.zed/
+.zed/**
+.idea/
+.idea/**
+.vscode/
+.vscode/**
+.project
+.classpath
+.factorypath
+*.iml
+
+# Build output & Gradle / Swift cache
+build/
+.gradle/
+bin/
+dist/
+node_modules/
+.build/
+.swiftpm/
+DerivedData/
+*.xcuserstate

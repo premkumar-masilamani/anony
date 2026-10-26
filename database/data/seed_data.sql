@@ -1,0 +1,2 @@
+-- Seed data initialization for anony_db
+-- Schema definitions are tracked in database/migrations/
