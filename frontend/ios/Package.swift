@@ -19,6 +19,11 @@ let package = Package(
             name: "AnonyCore",
             dependencies: [],
             path: "Sources/AnonyCore"
+        ),
+        .testTarget(
+            name: "AnonyCoreTests",
+            dependencies: ["AnonyCore"],
+            path: "Tests/AnonyCoreTests"
         )
     ]
 )

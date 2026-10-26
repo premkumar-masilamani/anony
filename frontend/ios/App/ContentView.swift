@@ -9,66 +9,50 @@ struct ContentView: View {
             ColorPalette.midnightSlate
                 .ignoresSafeArea()
 
-            VStack(spacing: 24) {
-                // Header with Aura
-                VStack(spacing: 12) {
-                    ZStack {
-                        PulsingAuraView()
-                            .frame(width: 80, height: 80)
-
-                        Image(systemName: "shield.lefthalf.filled")
-                            .font(.system(size: 36))
-                            .foregroundColor(ColorPalette.calmingCyan)
-                    }
-
-                    Text("Anony")
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundColor(.white)
-
-                    Text("Zero-PII Anonymous Mental Health & Coaching")
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.6))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
+            VStack(spacing: 0) {
+                // Top tranquil navigation selector
+                HStack(spacing: 12) {
+                    navTabButton(title: "Sanctuary", systemImage: "sparkles", index: 0)
+                    navTabButton(title: "Design System", systemImage: "paintpalette.fill", index: 1)
                 }
-                .padding(.top, 40)
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+                .background(ColorPalette.midnightSlate)
 
-                // Feature Status Card
-                GlassCard {
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack {
-                            TagPillView(text: "Private & Encrypted")
-                            Spacer()
-                            Circle()
-                                .fill(ColorPalette.sageGreen)
-                                .frame(width: 8, height: 8)
-                            Text("Ready")
-                                .font(.caption2)
-                                .foregroundColor(ColorPalette.sageGreen)
-                        }
+                // Tab content
+                TabView(selection: $selectedTab) {
+                    VisualTemplates.SanctuaryView()
+                        .tag(0)
 
-                        Text("Anonymous Client Identity")
-                            .font(.headline)
-                            .foregroundColor(.white)
-
-                        Text("Tokens are securely stored in iOS Keychain with zero sign-up forms required.")
-                            .font(.footnote)
-                            .foregroundColor(.white.opacity(0.7))
-                    }
+                    VisualTemplates.DesignSystemGalleryView()
+                        .tag(1)
                 }
-                .padding(.horizontal, 24)
-
-                Spacer()
-
-                // Actions
-                AnonyButton(title: "Enter Sanctuary") {
-                    // Navigate to sanctuary
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 32)
+                .tabViewStyle(.page(indexDisplayMode: .never))
             }
         }
         .preferredColorScheme(.dark)
+    }
+
+    private func navTabButton(title: String, systemImage: String, index: Int) -> some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                selectedTab = index
+            }
+        }) {
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.caption)
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(selectedTab == index ? .bold : .medium)
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 16)
+            .foregroundColor(selectedTab == index ? ColorPalette.midnightSlate : ColorPalette.textSecondary)
+            .background(selectedTab == index ? ColorPalette.calmingCyan : ColorPalette.elevatedCard)
+            .cornerRadius(10)
+        }
     }
 }
 

@@ -20,8 +20,8 @@ test:
 	@if command -v $(XCODEBUILD) >/dev/null 2>&1 && $(XCODEBUILD) -version >/dev/null 2>&1; then \
 		$(XCODEBUILD) test -scheme AnonyApp -destination 'generic/platform=iOS Simulator'; \
 	else \
-		echo "Verifying Swift package compilation..."; \
-		$(SWIFT) build; \
+		echo "Running Swift package tests via swift test..."; \
+		$(SWIFT) test --disable-xctest -Xswiftc -F -Xswiftc /Library/Developer/CommandLineTools/Library/Developer/Frameworks -Xlinker -rpath -Xlinker /Library/Developer/CommandLineTools/Library/Developer/Frameworks -Xlinker -rpath -Xlinker /Library/Developer/CommandLineTools/Library/Developer/usr/lib; \
 	fi
 
 lint:
