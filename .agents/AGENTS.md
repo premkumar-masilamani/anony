@@ -15,7 +15,7 @@ make run_backend
 make run_frontend
 
 # Open or build iOS mobile development environment
-make run_mobile
+make run_ios
 
 # Open or build Android mobile development environment
 make run_android
