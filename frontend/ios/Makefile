@@ -17,12 +17,7 @@ build:
 
 test:
 	@echo "Running mobile test suites..."
-	@if command -v $(XCODEBUILD) >/dev/null 2>&1 && $(XCODEBUILD) -version >/dev/null 2>&1; then \
-		$(XCODEBUILD) test -scheme AnonyApp -destination 'generic/platform=iOS Simulator'; \
-	else \
-		echo "Verifying Swift package compilation..."; \
-		$(SWIFT) build; \
-	fi
+	@$(SWIFT) test
 
 lint:
 	@echo "Linting Swift codebase..."

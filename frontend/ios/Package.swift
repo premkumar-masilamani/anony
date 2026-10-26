@@ -11,6 +11,10 @@ let package = Package(
         .library(
             name: "AnonyCore",
             targets: ["AnonyCore"]
+        ),
+        .executable(
+            name: "AnonyApp",
+            targets: ["AnonyApp"]
         )
     ],
     dependencies: [],
@@ -19,6 +23,17 @@ let package = Package(
             name: "AnonyCore",
             dependencies: [],
             path: "Sources/AnonyCore"
+        ),
+        .executableTarget(
+            name: "AnonyApp",
+            dependencies: ["AnonyCore"],
+            path: "App",
+            exclude: ["Info.plist"]
+        ),
+        .testTarget(
+            name: "AnonyCoreTests",
+            dependencies: ["AnonyCore"],
+            path: "Tests/AnonyCoreTests"
         )
     ]
 )
