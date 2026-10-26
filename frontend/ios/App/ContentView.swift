@@ -21,6 +21,7 @@ struct ContentView: View {
                 .background(ColorPalette.midnightSlate)
 
                 // Tab content
+                #if os(iOS)
                 TabView(selection: $selectedTab) {
                     VisualTemplates.SanctuaryView()
                         .tag(0)
@@ -29,6 +30,16 @@ struct ContentView: View {
                         .tag(1)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
+                #else
+                Group {
+                    if selectedTab == 0 {
+                        VisualTemplates.SanctuaryView()
+                    } else {
+                        VisualTemplates.DesignSystemGalleryView()
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                #endif
             }
         }
         .preferredColorScheme(.dark)
