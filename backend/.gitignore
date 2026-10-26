@@ -1,0 +1,6 @@
+# Gradle cache
+.gradle/
+
+# Build output
+build/
+bin/

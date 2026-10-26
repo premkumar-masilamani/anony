@@ -1,0 +1,23 @@
+# OS generated files
+**/.DS_Store
+**/Thumbs.db
+
+# Environment and local secrets
+.env
+
+# IDE configuration files
+.zed/
+.zed/**
+.idea/
+.idea/**
+.vscode/
+.vscode/**
+.project
+.classpath
+.factorypath
+*.iml
+
+# Build output & Gradle cache
+build/
+.gradle/
+bin/
