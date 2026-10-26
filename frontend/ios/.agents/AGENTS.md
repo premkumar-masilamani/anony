@@ -1,4 +1,4 @@
-# AGENTS.md - Mobile (iOS)
+# AGENTS.md - Frontend iOS
 
 ## Commands
 ```bash

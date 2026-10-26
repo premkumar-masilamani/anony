@@ -26,7 +26,7 @@ make build
 ## Boundaries
 
 ### Always do
-- Read the corresponding `.agents/AGENTS.md` file inside the `backend/`, `frontend/`, `mobile/`, or `database/` submodules before modifying their files.
+- Read the corresponding `.agents/AGENTS.md` file inside the `backend/`, `frontend/web/`, `frontend/ios/`, or `database/` submodules before modifying their files.
 - Fail fast immediately on startup or invocation if any required configuration, environment variable, or parameter is missing or unexpanded (e.g. `${VAR}`).
 - Use `org.apache.commons.lang3.StringUtils` for string blank/empty checks in the backend rather than custom string utility classes.
 
@@ -42,8 +42,8 @@ make build
 ## Project Structure
 ```text
 backend/           # Spring Boot 4.1 / Java 27 / Gradle
-frontend/          # React 19 / Vite / TypeScript / Tailwind
-mobile/            # iOS 17+ / SwiftUI / Swift Package Manager
+frontend/web/      # React 19 / Vite / TypeScript / Tailwind
+frontend/ios/      # iOS 17+ / SwiftUI / Swift Package Manager
 database/          # Postgres 17 / Docker / migrate
 .agents/           # Agent rules and context
 ```

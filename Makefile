@@ -21,33 +21,27 @@ run_backend:
 	@$(MAKE) -C backend dev
 
 run_frontend:
-	@echo "Launching frontend development server..."
-	@$(MAKE) -C frontend dev
+	@echo "Launching frontend web development server..."
+	@$(MAKE) -C frontend/web dev
 
 run_mobile:
-	@echo "Launching mobile development environment..."
-	@$(MAKE) -C mobile dev
+	@echo "Launching iOS mobile development environment..."
+	@$(MAKE) -C frontend/ios dev
 
 test:
 	@echo "Running backend test suites..."
 	@$(MAKE) -C backend test
-	@echo "Running frontend test suites..."
+	@echo "Running frontend web and iOS test suites..."
 	@$(MAKE) -C frontend test
-	@echo "Running mobile test suites..."
-	@$(MAKE) -C mobile test
 
 lint:
 	@echo "Linting backend source code..."
 	@$(MAKE) -C backend lint
-	@echo "Linting frontend source code..."
+	@echo "Linting frontend web and iOS source code..."
 	@$(MAKE) -C frontend lint
-	@echo "Linting mobile source code..."
-	@$(MAKE) -C mobile lint
 
 build:
 	@echo "Building backend production artifact..."
 	@$(MAKE) -C backend build
-	@echo "Building frontend production bundle..."
+	@echo "Building frontend web and iOS production bundles..."
 	@$(MAKE) -C frontend build
-	@echo "Building mobile Swift artifacts..."
-	@$(MAKE) -C mobile build

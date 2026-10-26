@@ -1,38 +1,41 @@
--include ../.env
-ifneq ($(wildcard ../.env),)
-    export $(shell sed 's/=.*//' ../.env)
-endif
+.PHONY: all dev dev_web dev_ios test lint build clean install check
 
-NPM         := npm
-NODE_ENV    ?= development
-export NODE_OPTIONS=--max-old-space-size=4096
-
-.PHONY: dev test lint build clean install check
-
-all: dev
+all: dev_web
 
 install:
-	@echo "Installing frontend dependencies..."
-	$(NPM) install
+	@echo "Installing web frontend dependencies..."
+	@$(MAKE) -C web install
 
-dev:
-	@echo "Starting development environment..."
-	$(NPM) run dev
+dev: dev_web
+
+dev_web:
+	@$(MAKE) -C web dev
+
+dev_ios:
+	@$(MAKE) -C ios dev
 
 test:
-	@echo "Running unit tests using Vitest..."
-	npx vitest run
+	@echo "Running web frontend test suites..."
+	@$(MAKE) -C web test
+	@echo "Running iOS mobile test suites..."
+	@$(MAKE) -C ios test
 
 lint:
-	@echo "Running static analysis code verification..."
-	$(NPM) run lint
+	@echo "Linting web frontend source code..."
+	@$(MAKE) -C web lint
+	@echo "Linting iOS mobile source code..."
+	@$(MAKE) -C ios lint
 
 build:
-	@echo "Building production bundles (NODE_ENV=$(NODE_ENV))..."
-	$(NPM) run build
-
-check: lint test build
+	@echo "Building web frontend production bundle..."
+	@$(MAKE) -C web build
+	@echo "Building iOS mobile Swift artifacts..."
+	@$(MAKE) -C ios build
 
 clean:
-	@echo "Cleaning up local build workspaces..."
-	rm -rf dist
+	@$(MAKE) -C web clean
+	@$(MAKE) -C ios clean
+
+check:
+	@$(MAKE) -C web check
+	@$(MAKE) -C ios check
