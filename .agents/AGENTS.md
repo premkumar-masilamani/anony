@@ -17,6 +17,9 @@ make run_frontend
 # Open or build iOS mobile development environment
 make run_mobile
 
+# Open or build Android mobile development environment
+make run_android
+
 # Run tests and static analysis
 make test
 make lint
@@ -26,7 +29,7 @@ make build
 ## Boundaries
 
 ### Always do
-- Read the corresponding `.agents/AGENTS.md` file inside the `backend/`, `frontend/web/`, `frontend/ios/`, or `database/` submodules before modifying their files.
+- Read the corresponding `.agents/AGENTS.md` file inside the `backend/`, `frontend/web/`, `frontend/ios/`, `frontend/android/`, or `database/` submodules before modifying their files.
 - Fail fast immediately on startup or invocation if any required configuration, environment variable, or parameter is missing or unexpanded (e.g. `${VAR}`).
 - Use `org.apache.commons.lang3.StringUtils` for string blank/empty checks in the backend rather than custom string utility classes.
 
@@ -44,6 +47,7 @@ make build
 backend/           # Spring Boot 4.1 / Java 27 / Gradle
 frontend/web/      # React 19 / Vite / TypeScript / Tailwind
 frontend/ios/      # iOS 17+ / SwiftUI / Swift Package Manager
+frontend/android/  # Android 14+ / Kotlin / Jetpack Compose
 database/          # Postgres 17 / Docker / migrate
 .agents/           # Agent rules and context
 ```

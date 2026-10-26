@@ -4,7 +4,7 @@ ifneq ($(wildcard .env),)
     export $(shell sed 's/=.*//' .env)
 endif
 
-.PHONY: all run_database connect_database run_backend run_frontend run_mobile test lint build
+.PHONY: all run_database connect_database run_backend run_frontend run_mobile run_android test lint build
 
 all: run_backend
 
@@ -28,20 +28,24 @@ run_mobile:
 	@echo "Launching iOS mobile development environment..."
 	@$(MAKE) -C frontend/ios dev
 
+run_android:
+	@echo "Launching Android mobile development environment..."
+	@$(MAKE) -C frontend/android dev
+
 test:
 	@echo "Running backend test suites..."
 	@$(MAKE) -C backend test
-	@echo "Running frontend web and iOS test suites..."
+	@echo "Running frontend (web, iOS, Android) test suites..."
 	@$(MAKE) -C frontend test
 
 lint:
 	@echo "Linting backend source code..."
 	@$(MAKE) -C backend lint
-	@echo "Linting frontend web and iOS source code..."
+	@echo "Linting frontend (web, iOS, Android) source code..."
 	@$(MAKE) -C frontend lint
 
 build:
 	@echo "Building backend production artifact..."
 	@$(MAKE) -C backend build
-	@echo "Building frontend web and iOS production bundles..."
+	@echo "Building frontend (web, iOS, Android) production bundles..."
 	@$(MAKE) -C frontend build

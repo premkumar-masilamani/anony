@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="midnight_slate">#0B0F19</color>
+    <color name="warm_charcoal">#161B26</color>
+    <color name="elevated_card">#1E2536</color>
+    <color name="sage_green">#34D399</color>
+    <color name="calming_cyan">#38BDF8</color>
+    <color name="muted_lavender">#A78BFA</color>
+</resources>
