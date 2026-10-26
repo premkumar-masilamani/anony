@@ -17,9 +17,13 @@
 .factorypath
 *.iml
 
-# Build output & Gradle cache
+# Build output & Gradle / Swift cache
 build/
 .gradle/
 bin/
 dist/
 node_modules/
+.build/
+.swiftpm/
+DerivedData/
+*.xcuserstate
