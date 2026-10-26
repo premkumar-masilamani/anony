@@ -11,6 +11,9 @@ make connect_database
 # Start Spring Boot backend with continuous live reload
 make run_backend
 
+# Install dependencies and start Vite frontend dev server
+make run_frontend
+
 # Run tests and static analysis
 make test
 make lint
@@ -20,7 +23,7 @@ make build
 ## Boundaries
 
 ### Always do
-- Read the corresponding `.agents/AGENTS.md` file inside the `backend/` or `database/` submodules before modifying their files.
+- Read the corresponding `.agents/AGENTS.md` file inside the `backend/`, `frontend/`, or `database/` submodules before modifying their files.
 - Fail fast immediately on startup or invocation if any required configuration, environment variable, or parameter is missing or unexpanded (e.g. `${VAR}`).
 - Use `org.apache.commons.lang3.StringUtils` for string blank/empty checks in the backend rather than custom string utility classes.
 
@@ -36,6 +39,7 @@ make build
 ## Project Structure
 ```text
 backend/           # Spring Boot 4.1 / Java 27 / Gradle
+frontend/          # React 19 / Vite / TypeScript / Tailwind
 database/          # Postgres 17 / Docker / migrate
 .agents/           # Agent rules and context
 ```
