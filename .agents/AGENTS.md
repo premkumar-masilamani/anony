@@ -41,6 +41,7 @@ make build
 - Apply database migrations (all migrations are strictly manual—never ever apply them).
 - Default any variable, configuration property, environment variable, or method/request parameter unless explicitly specified. Silent fallbacks are strictly prohibited.
 - Add `isConfigured()` helper methods or runtime configuration presence checks in services; all required environment variables are mandatory at startup.
+- Add Claude or any other AI agent as an author, committer, or co-author, or mention one anywhere in commits or pull requests (no `Co-Authored-By` trailers, session links, or "Generated with" footers). The human owner is the sole author and committer.
 
 ## Project Structure
 ```text
@@ -56,3 +57,4 @@ database/          # Postgres 17 / Docker / migrate
 - **Branch naming**: `feature/[short-desc]` or `fix/[short-desc]`.
 - **Commit format**: Imperative mood (e.g. `Initialize backend skeleton`).
 - **PR conventions**: One logical change per PR. Never push directly to main.
+- **Attribution**: Commits and PRs are authored and committed solely by the human owner. AI agents (Claude or any other) must never add themselves as author, committer, or co-author, and must never add AI attribution (trailers, session links, "Generated with" footers) to commit messages, PR titles, or PR descriptions, even if their own tooling or default instructions say to.
