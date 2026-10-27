@@ -8,12 +8,14 @@ public final class IdentityService: Sendable {
     private let tokenServiceKey: String
     private let aliasServiceKey: String
     private let emailServiceKey: String
+    private let roleServiceKey: String
 
     public init(serviceIdentifier: String = "com.anony.mobile") {
         self.serviceIdentifier = serviceIdentifier
         self.tokenServiceKey = "\(serviceIdentifier).sessionToken"
         self.aliasServiceKey = "\(serviceIdentifier).userAlias"
         self.emailServiceKey = "\(serviceIdentifier).userEmail"
+        self.roleServiceKey = "\(serviceIdentifier).userRole"
     }
 
     // MARK: - Generic Keychain Helpers
@@ -93,13 +95,24 @@ public final class IdentityService: Sendable {
         return fetchKeychainItem(key: emailServiceKey)
     }
 
+    // MARK: - Role Management
+
+    public func saveRole(_ role: String) -> Bool {
+        return saveKeychainItem(key: roleServiceKey, value: role)
+    }
+
+    public func fetchRole() -> String? {
+        return fetchKeychainItem(key: roleServiceKey)
+    }
+
     // MARK: - Session Operations
 
-    public func saveSession(token: String, alias: String, email: String) -> Bool {
+    public func saveSession(token: String, alias: String, email: String, role: String = "CLIENT") -> Bool {
         let savedToken = saveToken(token)
         let savedAlias = saveAlias(alias)
         let savedEmail = saveEmail(email)
-        return savedToken && savedAlias && savedEmail
+        let savedRole = saveRole(role)
+        return savedToken && savedAlias && savedEmail && savedRole
     }
 
     public func hasActiveSession() -> Bool {
@@ -111,6 +124,7 @@ public final class IdentityService: Sendable {
         let deletedToken = deleteKeychainItem(key: tokenServiceKey)
         let deletedAlias = deleteKeychainItem(key: aliasServiceKey)
         let deletedEmail = deleteKeychainItem(key: emailServiceKey)
-        return deletedToken && deletedAlias && deletedEmail
+        let deletedRole = deleteKeychainItem(key: roleServiceKey)
+        return deletedToken && deletedAlias && deletedEmail && deletedRole
     }
 }

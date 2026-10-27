@@ -5,8 +5,11 @@ import com.anony.api.dtos.auth.LoginRequest;
 import com.anony.api.dtos.auth.LoginResponse;
 import com.anony.api.dtos.auth.LogoutResponse;
 import com.anony.api.dtos.auth.UserSummaryDto;
+import com.anony.api.dtos.client.ClientRegistrationRequest;
 import com.anony.domain.auth.AuthService;
 import com.anony.domain.auth.AuthenticationResult;
+import com.anony.domain.client.ClientRegistrationCommand;
+import com.anony.domain.client.ClientService;
 import com.anony.domain.security.AuthenticatedUser;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -20,21 +23,62 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * REST controller exposing user authentication (login) and session termination (logout) endpoints.
+ * REST controller exposing user authentication (login, register) and session termination (logout) endpoints.
  */
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
   private final AuthService authService;
+  private final ClientService clientService;
 
   /**
    * Constructs the authentication controller.
    *
    * @param authService service for managing authentication and sessions
+   * @param clientService service for managing client registration
    */
-  public AuthController(AuthService authService) {
+  public AuthController(AuthService authService, ClientService clientService) {
     this.authService = authService;
+    this.clientService = clientService;
+  }
+
+  /**
+   * Registers a new client profile and issues a signed Bearer JWT.
+   *
+   * @param clientRegistrationRequest client registration details
+   * @return response containing token and user summary
+   */
+  @PostMapping("/register")
+  public ResponseEntity<LoginResponse> register(
+      @Valid @RequestBody ClientRegistrationRequest clientRegistrationRequest) {
+    ClientRegistrationCommand command =
+        new ClientRegistrationCommand(
+            clientRegistrationRequest.email(),
+            clientRegistrationRequest.password(),
+            clientRegistrationRequest.firstName(),
+            clientRegistrationRequest.lastName(),
+            clientRegistrationRequest.alias());
+
+    clientService.registerClient(command);
+
+    AuthenticationResult authenticationResult =
+        authService.authenticate(
+            clientRegistrationRequest.email(), clientRegistrationRequest.password());
+
+    UserSummaryDto userSummaryDto =
+        new UserSummaryDto(
+            authenticationResult.userId(),
+            authenticationResult.email(),
+            authenticationResult.role());
+
+    LoginResponse loginResponse =
+        new LoginResponse(
+            authenticationResult.token(),
+            authenticationResult.expiresIn(),
+            userSummaryDto);
+
+    return ResponseEntity.status(HttpStatus.CREATED).body(loginResponse);
   }
 
   /**
@@ -106,3 +150,4 @@ public class AuthController {
         .body(new ErrorResponse(illegalArgumentException.getMessage()));
   }
 }
+

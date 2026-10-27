@@ -303,4 +303,269 @@ struct RemoteAuthServiceTests {
             _ = try await authService.register(email: "new.user@anony.internal", password: "ValidPassword#123")
         }
     }
+
+    @Test("Remote coach registration succeeds with HTTP 201 and establishes COACH session")
+    func testRemoteCoachRegistrationSuccess() async throws {
+        let testSession = makeTestSession()
+        let testBaseURL = URL(string: "http://127.0.0.1:8080")!
+        let identityService = isolatedIdentityService
+        _ = identityService.clearSession()
+
+        let authService = RemoteAuthService(
+            baseURL: testBaseURL,
+            session: testSession,
+            identityService: identityService
+        )
+
+        let targetEmail = "coach.dan@anony.internal"
+        let targetPassword = "CoachPassword#123"
+
+        MockURLProtocol.requestHandler = { request in
+            if request.url?.path == "/api/v1/coaches/register" {
+                #expect(request.httpMethod == "POST")
+                let coachProfileJSON = """
+                {
+                    "coachId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                    "userId": "11111111-2222-3333-4444-555555555555",
+                    "email": "\(targetEmail)",
+                    "firstName": "Dan",
+                    "lastName": "Okafor",
+                    "timezone": "Europe/London",
+                    "icfLevel": "MCC",
+                    "icfAcc": false,
+                    "icfPcc": false,
+                    "icfMcc": true,
+                    "icfActc": false,
+                    "isVerified": false,
+                    "isOnboarded": false,
+                    "domainCodes": ["LEADERSHIP"],
+                    "createdAt": "2026-10-27T10:00:00Z"
+                }
+                """
+                let response = HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 201,
+                    httpVersion: nil,
+                    headerFields: ["Content-Type": "application/json"]
+                )!
+                return (response, coachProfileJSON.data(using: .utf8)!)
+            } else if request.url?.path == "/api/v1/auth/login" {
+                #expect(request.httpMethod == "POST")
+                let loginJSON = """
+                {
+                    "token": "jwt_coach_session_token",
+                    "expiresIn": 86400,
+                    "user": {
+                        "userId": "11111111-2222-3333-4444-555555555555",
+                        "email": "\(targetEmail)",
+                        "role": "COACH"
+                    }
+                }
+                """
+                let response = HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: ["Content-Type": "application/json"]
+                )!
+                return (response, loginJSON.data(using: .utf8)!)
+            }
+            fatalError("Unexpected request: \(request)")
+        }
+
+        let payload = CoachRegistrationPayload(
+            email: targetEmail,
+            password: targetPassword,
+            firstName: "Dan",
+            lastName: "Okafor",
+            icfLevel: "MCC",
+            credentialDetails: "ICF-99881",
+            domainCodes: ["LEADERSHIP"],
+            timezone: "Europe/London",
+            hourlyRate: 200.0
+        )
+
+        let session = try await authService.registerCoach(payload: payload)
+        #expect(session.email == targetEmail)
+        #expect(session.role == "COACH")
+        #expect(identityService.fetchRole() == "COACH")
+        #expect(identityService.hasActiveSession())
+    }
+
+    @Test("Remote fetch coach profile returns profile details")
+    func testRemoteFetchCoachProfileSuccess() async throws {
+        let testSession = makeTestSession()
+        let testBaseURL = URL(string: "http://127.0.0.1:8080")!
+        let identityService = isolatedIdentityService
+        _ = identityService.clearSession()
+        _ = identityService.saveToken("valid_bearer_token")
+
+        let authService = RemoteAuthService(
+            baseURL: testBaseURL,
+            session: testSession,
+            identityService: identityService
+        )
+
+        MockURLProtocol.requestHandler = { request in
+            #expect(request.url?.path == "/api/v1/coaches/me")
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer valid_bearer_token")
+
+            let profileJSON = """
+            {
+                "coachId": "20000000-0000-4000-8000-000000000001",
+                "userId": "10000000-0000-4000-8000-000000000001",
+                "email": "maya.raman@example.com",
+                "firstName": "Maya",
+                "lastName": "Raman",
+                "timezone": "Asia/Kolkata",
+                "icfLevel": "PCC",
+                "icfAcc": false,
+                "icfPcc": true,
+                "icfMcc": false,
+                "icfActc": false,
+                "isVerified": true,
+                "isOnboarded": true,
+                "domainCodes": ["CAREER", "BURNOUT"],
+                "createdAt": "2026-10-27T10:00:00Z"
+            }
+            """
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            return (response, profileJSON.data(using: .utf8)!)
+        }
+
+        let profile = try await authService.fetchCoachProfile()
+        #expect(profile.email == "maya.raman@example.com")
+        #expect(profile.isVerified == true)
+        #expect(profile.icfLevel == "PCC")
+    }
+
+    @Test("Remote fetch client profile returns client profile details")
+    func testRemoteFetchClientProfileSuccess() async throws {
+        let testSession = makeTestSession()
+        let testBaseURL = URL(string: "http://127.0.0.1:8080")!
+        let identityService = isolatedIdentityService
+        _ = identityService.clearSession()
+        _ = identityService.saveToken("valid_client_token")
+
+        let authService = RemoteAuthService(
+            baseURL: testBaseURL,
+            session: testSession,
+            identityService: identityService
+        )
+
+        MockURLProtocol.requestHandler = { request in
+            #expect(request.url?.path == "/api/v1/clients/me")
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer valid_client_token")
+
+            let profileJSON = """
+            {
+                "clientId": "30000000-0000-4000-8000-000000000001",
+                "userId": "10000000-0000-4000-8000-000000000101",
+                "email": "arjun.mehta@example.com",
+                "firstName": "Arjun",
+                "lastName": "Mehta",
+                "alias": "Courageous Owl",
+                "isAnonymous": true,
+                "isOnboarded": true,
+                "createdAt": "2026-10-27T10:00:00Z"
+            }
+            """
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            return (response, profileJSON.data(using: .utf8)!)
+        }
+
+        let profile = try await authService.fetchClientProfile()
+        #expect(profile.email == "arjun.mehta@example.com")
+        #expect(profile.alias == "Courageous Owl")
+        #expect(profile.isAnonymous == true)
+    }
+
+    @Test("Remote update coach profile sends PUT /api/v1/coaches/me and returns updated profile")
+    func testRemoteUpdateCoachProfileSuccess() async throws {
+        let testSession = makeTestSession()
+        let testBaseURL = URL(string: "http://127.0.0.1:8080")!
+        let identityService = isolatedIdentityService
+        _ = identityService.clearSession()
+        _ = identityService.saveToken("valid_coach_token")
+
+        let authService = RemoteAuthService(
+            baseURL: testBaseURL,
+            session: testSession,
+            identityService: identityService
+        )
+
+        MockURLProtocol.requestHandler = { request in
+            #expect(request.url?.path == "/api/v1/coaches/me")
+            #expect(request.httpMethod == "PUT")
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer valid_coach_token")
+            #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
+
+            let profileJSON = """
+            {
+                "coachId": "20000000-0000-4000-8000-000000000001",
+                "userId": "10000000-0000-4000-8000-000000000001",
+                "email": "maya.raman@example.com",
+                "firstName": "UpdatedMaya",
+                "lastName": "UpdatedRaman",
+                "photoUrl": "https://example.com/photo.jpg",
+                "gender": "FEMALE",
+                "countryCode": "IN",
+                "timezone": "Asia/Kolkata",
+                "biography": "Updated leadership bio",
+                "icfLevel": "MCC",
+                "icfAcc": true,
+                "icfPcc": true,
+                "icfMcc": true,
+                "icfActc": false,
+                "credentialDetails": "ICF-MCC-1029",
+                "hourlyRate": 250.0,
+                "isVerified": false,
+                "isOnboarded": true,
+                "domainCodes": ["CAREER", "LEADERSHIP"],
+                "createdAt": "2026-10-27T10:00:00Z"
+            }
+            """
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            return (response, profileJSON.data(using: .utf8)!)
+        }
+
+        let payload = CoachUpdatePayload(
+            firstName: "UpdatedMaya",
+            lastName: "UpdatedRaman",
+            photoUrl: "https://example.com/photo.jpg",
+            gender: "FEMALE",
+            countryCode: "IN",
+            timezone: "Asia/Kolkata",
+            biography: "Updated leadership bio",
+            icfLevel: "MCC",
+            icfAcc: true,
+            icfPcc: true,
+            icfMcc: true,
+            icfActc: false,
+            credentialDetails: "ICF-MCC-1029",
+            domainCodes: ["CAREER", "LEADERSHIP"],
+            hourlyRate: 250.0
+        )
+
+        let updated = try await authService.updateCoachProfile(payload: payload)
+        #expect(updated.firstName == "UpdatedMaya")
+        #expect(updated.lastName == "UpdatedRaman")
+        #expect(updated.icfMcc == true)
+        #expect(updated.hourlyRate == 250.0)
+    }
 }

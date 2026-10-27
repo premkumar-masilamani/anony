@@ -64,7 +64,12 @@ public class SecurityConfiguration {
         .authorizeHttpRequests(
             authorizationConfigurer ->
                 authorizationConfigurer
-                    .requestMatchers(HttpMethod.POST, "/api/v1/auth/login")
+                    .requestMatchers(
+                        HttpMethod.POST,
+                        "/api/v1/auth/login",
+                        "/api/v1/auth/register",
+                        "/api/v1/coaches/register",
+                        "/api/v1/coaches/login")
                     .permitAll()
                     .requestMatchers("/actuator/**")
                     .permitAll()

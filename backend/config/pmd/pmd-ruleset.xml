@@ -32,6 +32,7 @@
         <exclude name="SystemPrintln"/>
         <exclude name="UnusedAssignment"/>
         <exclude name="LiteralsFirstInComparisons"/>
+        <exclude name="ImplicitFunctionalInterface"/>
     </rule>
 
     <rule ref="category/java/codestyle.xml">

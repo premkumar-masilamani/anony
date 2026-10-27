@@ -2,13 +2,14 @@ import SwiftUI
 
 public struct RegistrationView: View {
     public enum AuthMode: String, CaseIterable, Identifiable, Sendable {
+        case register = "Sign Up"
         case signIn = "Sign In"
-        case register = "Create Account"
 
         public var id: String { rawValue }
     }
 
     @State private var authMode: AuthMode = .signIn
+    @State private var isShowingCoachSignUp: Bool = false
     @State private var email: String = ""
     @State private var password: String = ""
     @State private var isLoading: Bool = false
@@ -40,6 +41,27 @@ public struct RegistrationView: View {
     }
 
     public var body: some View {
+        Group {
+            if isShowingCoachSignUp {
+                CoachAuthView(
+                    authService: authService,
+                    onSwitchToClient: {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            isShowingCoachSignUp = false
+                        }
+                    },
+                    onSuccess: onSuccess
+                )
+                .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .trailing)))
+            } else {
+                clientAuthView
+                    .transition(.asymmetric(insertion: .move(edge: .leading), removal: .move(edge: .leading)))
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private var clientAuthView: some View {
         ZStack {
             ColorPalette.backgroundGradient
                 .ignoresSafeArea()
@@ -61,20 +83,52 @@ public struct RegistrationView: View {
             .ignoresSafeArea()
 
             ScrollView {
-                VStack(spacing: 28) {
+                VStack(spacing: 24) {
+                    // Top coach switch button/link when in signup mode
+                    if authMode == .register {
+                        HStack {
+                            Spacer()
+                            Button {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                    isShowingCoachSignUp = true
+                                }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "person.badge.shield.checkmark.fill")
+                                    Text("Are you a coach? Coach Sign Up →")
+                                }
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(ColorPalette.sageGreen)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(ColorPalette.warmCharcoal.opacity(0.85))
+                                .cornerRadius(20)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .stroke(ColorPalette.sageGreen.opacity(0.6), lineWidth: 1)
+                                )
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
+                    }
+
                     // Header
                     VStack(spacing: 10) {
                         Image(systemName: "shield.lefthalf.filled")
                             .font(.system(size: 44))
                             .foregroundColor(ColorPalette.calmingCyan)
-                            .padding(.top, 40)
+                            .padding(.top, authMode == .register ? 10 : 36)
 
-                        Text("Welcome to Anony")
+                        Text(authMode == .register ? "Create Client Account" : "Sign In")
                             .font(.title)
                             .fontWeight(.bold)
                             .foregroundColor(ColorPalette.textPrimary)
 
-                        Text("Create your account securely. An anonymous alias and avatar will be assigned automatically.")
+                        Text(authMode == .register
+                            ? "Sign up anonymously as a client. An encrypted alias and avatar will be assigned automatically."
+                            : "Sign in to your account. Both coaches and clients access their dashboard here.")
                             .font(.subheadline)
                             .foregroundColor(ColorPalette.textSecondary)
                             .multilineTextAlignment(.center)
@@ -84,14 +138,6 @@ public struct RegistrationView: View {
                     // Form Card
                     GlassCard(style: .elevated, cornerRadius: 20) {
                         VStack(alignment: .leading, spacing: 20) {
-                            // Auth Mode Selector
-                            Picker("Authentication Mode", selection: $authMode) {
-                                ForEach(AuthMode.allCases) { mode in
-                                    Text(mode.rawValue).tag(mode)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-
                             // Email Field
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Email Address")
@@ -120,7 +166,7 @@ public struct RegistrationView: View {
                                     RoundedRectangle(cornerRadius: 10)
                                         .stroke(ColorPalette.cardBorder, lineWidth: 1)
                                 )
-                                
+
                                 if !email.isEmpty && !isEmailValid {
                                     HStack(spacing: 6) {
                                         Image(systemName: "exclamationmark.circle")
@@ -158,17 +204,18 @@ public struct RegistrationView: View {
                                         .stroke(ColorPalette.cardBorder, lineWidth: 1)
                                 )
 
-                                // Password requirements guide
-                                HStack(spacing: 6) {
-                                    Image(systemName: isPasswordValid ? "checkmark.circle.fill" : "info.circle")
-                                        .font(.caption2)
-                                        .foregroundColor(isPasswordValid ? ColorPalette.sageGreen : ColorPalette.textMuted)
+                                if authMode == .register {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: isPasswordValid ? "checkmark.circle.fill" : "info.circle")
+                                            .font(.caption2)
+                                            .foregroundColor(isPasswordValid ? ColorPalette.sageGreen : ColorPalette.textMuted)
 
-                                    Text("Must be longer than 8 characters and up to 32 characters.")
-                                        .font(.caption2)
-                                        .foregroundColor(isPasswordValid ? ColorPalette.sageGreen : ColorPalette.textMuted)
+                                        Text("Must be longer than 8 characters and up to 32 characters.")
+                                            .font(.caption2)
+                                            .foregroundColor(isPasswordValid ? ColorPalette.sageGreen : ColorPalette.textMuted)
+                                    }
+                                    .padding(.top, 2)
                                 }
-                                .padding(.top, 2)
                             }
 
                             // Error message (if any)
@@ -185,7 +232,7 @@ public struct RegistrationView: View {
 
                             // Submit Button
                             AnonyButton(
-                                title: authMode == .signIn ? "Sign In" : "Complete Registration",
+                                title: authMode == .signIn ? "Sign In" : "Sign Up",
                                 systemImage: "arrow.right.circle.fill",
                                 variant: .primary,
                                 size: .large,
@@ -195,29 +242,35 @@ public struct RegistrationView: View {
                                 performAuthAction()
                             }
                             .padding(.top, 8)
+
+                            // Auth Mode Switch Text Link
+                            Button {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                    authMode = (authMode == .signIn ? .register : .signIn)
+                                    errorMessage = nil
+                                }
+                            } label: {
+                                HStack(spacing: 5) {
+                                    Text(authMode == .signIn ? "Need to create an account?" : "Already registered?")
+                                        .foregroundColor(ColorPalette.textSecondary)
+                                    Text(authMode == .signIn ? "Sign Up" : "Sign In")
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(ColorPalette.calmingCyan)
+                                }
+                                .font(.subheadline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
                         }
                         .padding(20)
                     }
                     .padding(.horizontal, 20)
-
-                    // Tranquil Privacy Guarantee Pill
-                    HStack(spacing: 8) {
-                        TagPillView(
-                            text: "Keychain Encrypted",
-                            systemImage: "lock.shield.fill",
-                            variant: .cyan
-                        )
-                        TagPillView(
-                            text: "Procedural Avatar",
-                            systemImage: "sparkles",
-                            variant: .sage
-                        )
-                    }
                     .padding(.bottom, 24)
                 }
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     private func performAuthAction() {

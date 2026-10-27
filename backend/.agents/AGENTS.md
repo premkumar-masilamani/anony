@@ -30,6 +30,8 @@ make lint
 - When testing controllers with standalone `MockMvcBuilders.standaloneSetup()`, register `AuthenticationPrincipalArgumentResolver` via `.setCustomArgumentResolvers(...)` so `@AuthenticationPrincipal` correctly resolves mock principals.
 - Use concrete DTO records (e.g. `ErrorResponse`) for API error payloads in controller `@ExceptionHandler` methods instead of `java.util.Map` to comply with PMD `LooseCoupling` rules.
 - Use `%n` or direct string concatenation rather than text block `.formatted(...)` with implicit `\n` in test payloads to avoid SpotBugs `VA_FORMAT_STRING_USES_NEWLINE` warnings.
+- Keep PMD tasks configured with `classpath = files()` and exclude `ImplicitFunctionalInterface` in `pmd-ruleset.xml` to prevent ASM bytecode inspection `StackOverflowError` on Java 27 classes.
+- When creating coach profiles, preserve the `coaches_icf_credential_check` constraint requiring at least one ICF credential boolean (`icf_acc`, `icf_pcc`, `icf_mcc`, or `icf_actc`) to be true, and ensure `user_role` matches `COACH` to satisfy the composite foreign key `(user_id, user_role)`.
 
 ### Ask first
 - Adding third-party libraries/dependencies to `build.gradle`.

@@ -6,6 +6,7 @@ public struct AuthSession: Identifiable, Codable, Sendable, Equatable {
     public let alias: String
     public let avatarId: String
     public let email: String
+    public let role: String
     public let createdAt: Date
 
     public init(
@@ -14,6 +15,7 @@ public struct AuthSession: Identifiable, Codable, Sendable, Equatable {
         alias: String,
         avatarId: String,
         email: String,
+        role: String = "CLIENT",
         createdAt: Date = Date()
     ) {
         self.id = id
@@ -21,6 +23,7 @@ public struct AuthSession: Identifiable, Codable, Sendable, Equatable {
         self.alias = alias
         self.avatarId = avatarId
         self.email = email
+        self.role = role
         self.createdAt = createdAt
     }
 }
