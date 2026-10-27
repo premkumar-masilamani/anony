@@ -27,6 +27,9 @@ make lint
 - Structure conditional branching so the `if` block executes the primary business logic (happy path), while the `else` block handles error, warning, fallback, or insufficient data conditions.
 - Fail fast immediately on application startup or execution if any required configuration, environment variable, or parameter is missing or unexpanded (e.g. `${VAR}`).
 - Use Apache Commons Lang `StringUtils` (`org.apache.commons.lang3.StringUtils`) for string blank/empty checks instead of custom utility classes.
+- When testing controllers with standalone `MockMvcBuilders.standaloneSetup()`, register `AuthenticationPrincipalArgumentResolver` via `.setCustomArgumentResolvers(...)` so `@AuthenticationPrincipal` correctly resolves mock principals.
+- Use concrete DTO records (e.g. `ErrorResponse`) for API error payloads in controller `@ExceptionHandler` methods instead of `java.util.Map` to comply with PMD `LooseCoupling` rules.
+- Use `%n` or direct string concatenation rather than text block `.formatted(...)` with implicit `\n` in test payloads to avoid SpotBugs `VA_FORMAT_STRING_USES_NEWLINE` warnings.
 
 ### Ask first
 - Adding third-party libraries/dependencies to `build.gradle`.
