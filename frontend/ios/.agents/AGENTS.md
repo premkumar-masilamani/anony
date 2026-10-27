@@ -31,6 +31,7 @@ make dev
 - When querying `kSecClassGenericPassword`, always supply both `kSecAttrService` and `kSecAttrAccount` to guarantee account isolation and prevent cross-item query ambiguity in multi-attribute Keychain sessions.
 - Annotate Swift Testing suites (`@Suite`) interacting with Keychain or shared singletons with `.serialized` to prevent parallel execution race conditions.
 - Enforce password boundary rules with simple count checks (`password.count > 8 && password.count <= 32`) without adding extraneous complexity rules unless explicitly specified.
+- Extract high-level navigation and routing state machines (e.g. flow views like `ClientRootFlowView`) into the `AnonyCore` library rather than keeping them private inside executable entry points (`ContentView`) to ensure full Swift Testing coverage.
 
 ### Ask first
 - Introducing third-party Swift Package dependencies beyond `livekit-client-swift`.
@@ -45,8 +46,8 @@ make dev
 AnonyApp.xcodeproj/     # Native iOS application project bundle
 App/                    # @main SwiftUI App entry point and primary screens
 Sources/AnonyCore/      # Shared Swift module
-  ├── DesignSystem/     # ColorPalette, AnonyButton, GlassCard, AuraView, AvatarCircleView, RegistrationView, VisualTemplates
-  ├── Models/           # AnonymousUser, AuthSession, RegistrationValidator, Coach, Session, Availability
-  └── Services/         # IdentityService, AuthService, KeychainStorage, ApiClient, LiveKitRoomManager
-Tests/AnonyCoreTests/   # Swift Testing suites (Registration, Identity, Auth, ColorPalette, Avatars, Buttons, Cards, Templates)
+  ├── DesignSystem/     # ColorPalette, AnonyButton, GlassCard, AuraView, Stepper, Shell, FlowCoordinator, VisualTemplates
+  ├── Models/           # AnonymousUser, AuthSession, Coach, CoachingSession, OnboardingPreferences, StruggleCategory, PricingTier
+  └── Services/         # IdentityService, AuthService, OnboardingService, KeychainStorage, ApiClient, LiveKitRoomManager
+Tests/AnonyCoreTests/   # Swift Testing suites (Registration, Identity, Stepper, Shell, Models, Onboarding)
 ```

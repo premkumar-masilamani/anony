@@ -28,11 +28,27 @@ struct RegistrationValidationTests {
         #expect(!RegistrationValidator.isValidPassword(String(repeating: "x", count: 64)))
     }
 
-    @Test("Email presence check")
+    @Test("Email syntax and format validation")
     func testEmailValidation() {
+        // Empty and blank
         #expect(!RegistrationValidator.isValidEmail(""))
         #expect(!RegistrationValidator.isValidEmail("   "))
+
+        // Malformed structure
+        #expect(!RegistrationValidator.isValidEmail("plainaddress"))
+        #expect(!RegistrationValidator.isValidEmail("@missingusername.com"))
+        #expect(!RegistrationValidator.isValidEmail("username@.com"))
+        #expect(!RegistrationValidator.isValidEmail("username@domain"))
+        #expect(!RegistrationValidator.isValidEmail("username@domain."))
+        #expect(!RegistrationValidator.isValidEmail("username@domain..com"))
+        #expect(!RegistrationValidator.isValidEmail("username@domain.c")) // TLD must be >= 2 characters
+        #expect(!RegistrationValidator.isValidEmail("user name@domain.com")) // whitespace in address
+
+        // Valid email formats
         #expect(RegistrationValidator.isValidEmail("client@anony.app"))
         #expect(RegistrationValidator.isValidEmail("user@example.com"))
+        #expect(RegistrationValidator.isValidEmail("first.last@company.org"))
+        #expect(RegistrationValidator.isValidEmail("client+filter@domain.io"))
+        #expect(RegistrationValidator.isValidEmail("user_123@sub.domain.co.uk"))
     }
 }

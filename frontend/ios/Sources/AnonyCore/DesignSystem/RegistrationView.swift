@@ -31,7 +31,7 @@ public struct RegistrationView: View {
 
     public var body: some View {
         ZStack {
-            ColorPalette.sanctuaryGradient
+            ColorPalette.backgroundGradient
                 .ignoresSafeArea()
 
             // Ambient background aura
@@ -102,6 +102,19 @@ public struct RegistrationView: View {
                                     RoundedRectangle(cornerRadius: 10)
                                         .stroke(ColorPalette.cardBorder, lineWidth: 1)
                                 )
+                                
+                                if !email.isEmpty && !isEmailValid {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "exclamationmark.circle")
+                                            .font(.caption2)
+                                            .foregroundColor(ColorPalette.calmingCyan)
+
+                                        Text("Please enter a valid email (e.g. user@example.com).")
+                                            .font(.caption2)
+                                            .foregroundColor(ColorPalette.textMuted)
+                                    }
+                                    .padding(.top, 2)
+                                }
                             }
 
                             // Password Field

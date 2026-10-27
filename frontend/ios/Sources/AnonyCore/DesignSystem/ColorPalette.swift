@@ -16,11 +16,13 @@ public enum ColorPalette {
     public static let cardBorder    = Color.white.opacity(0.08)
 
     // Tranquil Gradients
-    public static let sanctuaryGradient = LinearGradient(
+    public static let backgroundGradient = LinearGradient(
         colors: [midnightSlate, warmCharcoal],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
+
+
 
     public static let auraGlowGradient = RadialGradient(
         colors: [
