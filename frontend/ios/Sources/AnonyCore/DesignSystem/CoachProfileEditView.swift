@@ -7,6 +7,7 @@ public struct CoachProfileEditView: View {
     @State private var firstName: String
     @State private var lastName: String
     @State private var photoUrl: String
+    @State private var selectedCountryName: String
     @State private var countryCode: String
     @State private var timezone: String
     @State private var gender: String
@@ -46,8 +47,14 @@ public struct CoachProfileEditView: View {
         self._firstName = State(initialValue: profile.firstName)
         self._lastName = State(initialValue: profile.lastName)
         self._photoUrl = State(initialValue: profile.photoUrl ?? "")
-        self._countryCode = State(initialValue: profile.countryCode ?? "US")
-        self._timezone = State(initialValue: profile.timezone)
+        let resolvedIso = profile.countryCode ?? "US"
+        let resolvedCountry = CountryTimezoneConfig.countryName(forIsoCode: resolvedIso)
+        self._selectedCountryName = State(initialValue: resolvedCountry)
+        self._countryCode = State(initialValue: resolvedIso)
+
+        let tzs = CountryTimezoneConfig.timezones(forCountry: resolvedCountry)
+        let resolvedTz = tzs.first(where: { $0.value == profile.timezone })?.value ?? (tzs.first?.value ?? profile.timezone)
+        self._timezone = State(initialValue: resolvedTz)
         self._gender = State(initialValue: profile.gender ?? "")
 
         self._icfAcc = State(initialValue: profile.icfAcc)
@@ -89,6 +96,15 @@ public struct CoachProfileEditView: View {
             && hasAtLeastOneCertification
             && !selectedDomains.isEmpty
             && !isSaving
+    }
+
+    private func selectCountry(_ name: String) {
+        selectedCountryName = name
+        countryCode = CountryTimezoneConfig.isoCode(forCountry: name)
+        let tzs = CountryTimezoneConfig.timezones(forCountry: name)
+        if let firstTz = tzs.first {
+            timezone = firstTz.value
+        }
     }
 
     public var body: some View {
@@ -163,32 +179,93 @@ public struct CoachProfileEditView: View {
                                     .foregroundColor(ColorPalette.textPrimary)
                             }
 
-                            // Country Code
+                            // Country Dropdown (Human-readable)
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("Country Code (2-letter ISO, e.g. US)")
+                                Text("Country")
                                     .font(.caption)
                                     .foregroundColor(ColorPalette.textSecondary)
-                                TextField("US", text: $countryCode)
-                                    .autocorrectionDisabled()
-                                    #if os(iOS)
-                                    .textInputAutocapitalization(.characters)
-                                    #endif
+
+                                Menu {
+                                    ForEach(CountryTimezoneConfig.allCountries) { country in
+                                        Button {
+                                            selectCountry(country.name)
+                                        } label: {
+                                            if country.name == selectedCountryName {
+                                                Label(country.name, systemImage: "checkmark")
+                                            } else {
+                                                Text(country.name)
+                                            }
+                                        }
+                                    }
+                                } label: {
+                                    HStack {
+                                        Text(selectedCountryName)
+                                            .font(.subheadline)
+                                            .foregroundColor(ColorPalette.textPrimary)
+                                        Spacer()
+                                        Image(systemName: "chevron.up.chevron.down")
+                                            .font(.caption)
+                                            .foregroundColor(ColorPalette.textSecondary)
+                                    }
                                     .padding(10)
                                     .background(ColorPalette.warmCharcoal)
                                     .cornerRadius(8)
-                                    .foregroundColor(ColorPalette.textPrimary)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(ColorPalette.cardBorder, lineWidth: 1)
+                                    )
+                                }
+                                .accessibilityIdentifier("CountryDropdown")
                             }
 
-                            // Timezone
+                            // Timezone Dropdown (Auto-populated from selected country)
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("Timezone")
-                                    .font(.caption)
-                                    .foregroundColor(ColorPalette.textSecondary)
-                                TextField("Timezone", text: $timezone)
+                                let tzs = CountryTimezoneConfig.timezones(forCountry: selectedCountryName)
+                                let selectedLabel = tzs.first(where: { $0.value == timezone })?.label ?? timezone
+
+                                HStack {
+                                    Text("Timezone")
+                                        .font(.caption)
+                                        .foregroundColor(ColorPalette.textSecondary)
+                                    if tzs.count > 1 {
+                                        Text("(\(tzs.count) available)")
+                                            .font(.caption2)
+                                            .foregroundColor(ColorPalette.calmingCyan)
+                                    }
+                                }
+
+                                Menu {
+                                    ForEach(tzs) { tzOption in
+                                        Button {
+                                            timezone = tzOption.value
+                                        } label: {
+                                            if tzOption.value == timezone {
+                                                Label(tzOption.label, systemImage: "checkmark")
+                                            } else {
+                                                Text(tzOption.label)
+                                            }
+                                        }
+                                    }
+                                } label: {
+                                    HStack {
+                                        Text(selectedLabel)
+                                            .font(.subheadline)
+                                            .foregroundColor(ColorPalette.textPrimary)
+                                            .lineLimit(1)
+                                        Spacer()
+                                        Image(systemName: "chevron.up.chevron.down")
+                                            .font(.caption)
+                                            .foregroundColor(ColorPalette.textSecondary)
+                                    }
                                     .padding(10)
                                     .background(ColorPalette.warmCharcoal)
                                     .cornerRadius(8)
-                                    .foregroundColor(ColorPalette.textPrimary)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(ColorPalette.cardBorder, lineWidth: 1)
+                                    )
+                                }
+                                .accessibilityIdentifier("TimezoneDropdown")
                             }
 
                             // Gender

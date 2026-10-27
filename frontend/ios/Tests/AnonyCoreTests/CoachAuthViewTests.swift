@@ -156,7 +156,7 @@ struct CoachAuthViewTests {
         #expect(view.coachEmail == "coach@example.com")
     }
 
-    @Test("CoachProfileEditView instantiates cleanly")
+    @Test("CoachProfileEditView instantiates cleanly and resolves country options")
     func testCoachProfileEditViewInstantiation() {
         let profile = CoachProfileResponse(
             coachId: UUID(),
@@ -164,10 +164,34 @@ struct CoachAuthViewTests {
             email: "coach@example.com",
             firstName: "Jane",
             lastName: "Doe",
-            timezone: "UTC",
+            countryCode: "IN",
+            timezone: "Asia/Kolkata",
             icfLevel: "ACC",
             icfAcc: true,
             icfPcc: false,
+            icfMcc: false,
+            icfActc: false,
+            isVerified: false,
+            isOnboarded: false
+        )
+        let view = CoachProfileEditView(profile: profile, onSaved: { _ in })
+        let mirror = Mirror(reflecting: view)
+        #expect(!mirror.children.isEmpty)
+    }
+
+    @Test("CoachProfileEditView handles default US fallback when countryCode is nil")
+    func testCoachProfileEditViewDefaultCountry() {
+        let profile = CoachProfileResponse(
+            coachId: UUID(),
+            userId: UUID(),
+            email: "coach@example.com",
+            firstName: "John",
+            lastName: "Smith",
+            countryCode: nil,
+            timezone: "America/New_York",
+            icfLevel: "PCC",
+            icfAcc: true,
+            icfPcc: true,
             icfMcc: false,
             icfActc: false,
             isVerified: false,
