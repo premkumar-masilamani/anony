@@ -113,120 +113,74 @@ public struct MainShellView: View {
 
 // MARK: - Tab 1: Discover & Match View
 public struct DiscoverAndMatchView: View {
-    public var selectedCategory: StruggleCategory?
-    public var selectedTier: PricingTier?
+    public let selectedCategory: StruggleCategory?
+    public let selectedTier: PricingTier?
+    public let coachService: CoachServiceProtocol
 
-    @State private var categoryFilter: StruggleCategory?
-    @State private var tierFilter: PricingTier?
+    @StateObject private var viewModel: CoachDiscoveryViewModel
+    @State private var isBlindMatchExpanded: Bool = false
 
-    public let coaches: [Coach] = [
-        Coach(
-            alias: "AuraGuide",
-            title: "Resilience & Burnout Recovery",
-            specialty: .burnout,
-            tier: .free,
-            rating: 4.96,
-            sessionCount: 184,
-            avatarSeed: "AuraGuide",
-            availableSlots: ["Today 4:30 PM", "Tomorrow 2:30 PM", "Fri 11:00 AM"]
-        ),
-        Coach(
-            alias: "EchoClaritas",
-            title: "Executive & Career Navigation",
-            specialty: .career,
-            tier: .paid,
-            rating: 4.98,
-            sessionCount: 312,
-            avatarSeed: "EchoClaritas",
-            availableSlots: ["Today 2:30 PM", "Tomorrow 10:00 AM", "Thu 4:00 PM"]
-        ),
-        Coach(
-            alias: "ZephyrMind",
-            title: "Life Alignment & Transitions",
-            specialty: .life,
-            tier: .free,
-            rating: 4.91,
-            sessionCount: 97,
-            avatarSeed: "ZephyrMind",
-            availableSlots: ["Today 2:30 PM", "Tomorrow 3:00 PM", "Fri 10:00 AM"]
-        ),
-        Coach(
-            alias: "SolaceVessel",
-            title: "Deep Stress & Boundary Restoration",
-            specialty: .burnout,
-            tier: .paid,
-            rating: 4.99,
-            sessionCount: 420,
-            avatarSeed: "SolaceVessel",
-            availableSlots: ["Tomorrow 2:30 PM", "Fri 2:00 PM"]
-        )
-    ]
-
-    public init(initialCategory: StruggleCategory? = nil, initialTier: PricingTier? = nil) {
-        self.selectedCategory = initialCategory
-        self.selectedTier = initialTier
-        self._categoryFilter = State(initialValue: initialCategory)
-        self._tierFilter = State(initialValue: initialTier)
+    public var coaches: [Coach] {
+        viewModel.coaches.isEmpty ? MockCoachService.defaultCoaches : viewModel.coaches
     }
 
     public var filteredCoaches: [Coach] {
-        coaches.filter { coach in
-            let matchesCategory = categoryFilter == nil || coach.specialty == categoryFilter
-            let matchesTier = tierFilter == nil || coach.tier == tierFilter
-            return matchesCategory && matchesTier
+        viewModel.filteredCoaches
+    }
+
+    public init(
+        initialCategory: StruggleCategory? = nil,
+        initialTier: PricingTier? = nil,
+        coachService: CoachServiceProtocol = MockCoachService.shared
+    ) {
+        self.selectedCategory = initialCategory
+        self.selectedTier = initialTier
+        self.coachService = coachService
+
+        let initialTopic: CoachTopic?
+        if let cat = initialCategory {
+            switch cat {
+            case .career:
+                initialTopic = .careerBurnout
+            case .life:
+                initialTopic = .life
+            case .burnout:
+                initialTopic = .careerBurnout
+            }
+        } else {
+            initialTopic = nil
         }
+
+        _viewModel = StateObject(wrappedValue: CoachDiscoveryViewModel(
+            coachService: coachService,
+            initialTopic: initialTopic,
+            initialTier: initialTier
+        ))
     }
 
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // Intro Banner
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Discover Human Coaches")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundStyle(ColorPalette.textPrimary)
+                headerBanner
 
-                    Text("All coaching is 1-on-1 audio with verified human coaches. Zero video, zero AI.")
-                        .font(.subheadline)
-                        .foregroundStyle(ColorPalette.textSecondary)
-                }
+                // Free Match Mode: Blind Semantic Struggle Prompt Card
+                blindMatchCard
 
-                // Filter Pills
-                VStack(spacing: 10) {
-                    // Category filter row
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            filterChip(title: "All Areas", isSelected: categoryFilter == nil) {
-                                categoryFilter = nil
-                            }
+                // Comprehensive Real-Time Filter Bar
+                filterBar
 
-                            ForEach(StruggleCategory.allCases) { cat in
-                                filterChip(title: cat.title, isSelected: categoryFilter == cat) {
-                                    categoryFilter = cat
-                                }
-                            }
+                // Directory Results Header
+                resultsHeader
+
+                // Coach Cards List
+                if viewModel.filteredCoaches.isEmpty && !viewModel.isLoading {
+                    emptyFilterState
+                } else {
+                    LazyVStack(spacing: 14) {
+                        ForEach(viewModel.filteredCoaches) { coach in
+                            coachCard(coach)
                         }
-                    }
-
-                    // Tier filter row
-                    HStack(spacing: 8) {
-                        filterChip(title: "All Tiers", isSelected: tierFilter == nil) {
-                            tierFilter = nil
-                        }
-
-                        ForEach(PricingTier.allCases) { tier in
-                            filterChip(title: tier.title, isSelected: tierFilter == tier) {
-                                tierFilter = tier
-                            }
-                        }
-                    }
-                }
-
-                // Coach Cards
-                VStack(spacing: 14) {
-                    ForEach(filteredCoaches) { coach in
-                        coachCard(coach)
                     }
                 }
             }
@@ -234,31 +188,376 @@ public struct DiscoverAndMatchView: View {
             .padding(.top, 10)
             .padding(.bottom, 24)
         }
+        .task {
+            await viewModel.loadCoaches()
+        }
     }
 
-    private func filterChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
+    // MARK: - Subviews
+
+    private var headerBanner: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Discover Human Coaches")
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundStyle(ColorPalette.textPrimary)
+
+            Text("All coaching is 1-on-1 audio with verified human coaches. Zero video, zero AI.")
+                .font(.subheadline)
+                .foregroundStyle(ColorPalette.textSecondary)
+        }
+    }
+
+    // MARK: - Free Blind Match Mode
+    private var blindMatchCard: some View {
+        GlassCard(style: .elevated, cornerRadius: 16) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                            .font(.subheadline)
+                            .foregroundStyle(ColorPalette.calmingCyan)
+
+                        Text("Free Blind Match Mode")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(ColorPalette.textPrimary)
+                    }
+
+                    Spacer()
+
+                    TagPillView(
+                        text: "Pro-Bono Guides",
+                        variant: .sage
+                    )
+                }
+
+                Text("Enter a brief description of what you are experiencing. Our semantic matcher pairs you blind with an available verified pro-bono coach.")
+                    .font(.caption)
+                    .foregroundStyle(ColorPalette.textSecondary)
+                    .lineSpacing(3)
+
+                // Input Field
+                HStack(spacing: 8) {
+                    TextField(
+                        "Describe your struggle (e.g. burnout, leadership, career crossroad)...",
+                        text: $viewModel.blindMatchPrompt
+                    )
+                    .textFieldStyle(.plain)
+                    .font(.caption)
+                    .foregroundStyle(ColorPalette.textPrimary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(ColorPalette.warmCharcoal)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(ColorPalette.cardBorder, lineWidth: 1)
+                    )
+
+                    AnonyButton(
+                        title: viewModel.isBlindMatching ? "Matching..." : "Match",
+                        systemImage: viewModel.isBlindMatching ? nil : "arrow.right",
+                        variant: .primary,
+                        size: .small,
+                        isLoading: viewModel.isBlindMatching,
+                        isDisabled: viewModel.blindMatchPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ) {
+                        Task {
+                            await viewModel.submitBlindMatch()
+                        }
+                    }
+                }
+
+                // Blind Match Result Card Reveal
+                if let matched = viewModel.blindMatchResult {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            TagPillView(
+                                text: "Blind Match Found",
+                                systemImage: "checkmark.circle.fill",
+                                variant: .sage
+                            )
+                            Spacer()
+                            Button("Clear") {
+                                viewModel.resetBlindMatch()
+                            }
+                            .font(.caption2)
+                            .foregroundStyle(ColorPalette.textMuted)
+                        }
+
+                        HStack(spacing: 12) {
+                            AvatarCircleView(seed: matched.avatarSeed, size: .small, showAura: true)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Text(matched.alias)
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(ColorPalette.textPrimary)
+
+                                    TagPillView(text: matched.icfLevel.badgeTitle, variant: .lavender)
+                                }
+
+                                Text(matched.title)
+                                    .font(.caption2)
+                                    .foregroundStyle(ColorPalette.textSecondary)
+                            }
+
+                            Spacer()
+
+                            Text("Free")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundStyle(ColorPalette.sageGreen)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(ColorPalette.warmCharcoal)
+                                .clipShape(Capsule())
+                        }
+
+                        AnonyButton(
+                            title: "Book Free Audio Call with \(matched.alias)",
+                            systemImage: "waveform",
+                            variant: .secondary,
+                            size: .small
+                        ) {
+                            // Direct booking action hook
+                        }
+                    }
+                    .padding(12)
+                    .background(ColorPalette.warmCharcoal.opacity(0.8))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(ColorPalette.sageGreen.opacity(0.4), lineWidth: 1)
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - Filter Bar
+    private var filterBar: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Row 1: Topics Filter
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Topic Domain")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(ColorPalette.textMuted)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        filterChip(title: "All Topics", isSelected: viewModel.selectedTopic == nil) {
+                            viewModel.selectedTopic = nil
+                        }
+
+                        ForEach(CoachTopic.allCases) { topic in
+                            filterChip(
+                                title: topic.title,
+                                systemImage: topic.systemImage,
+                                isSelected: viewModel.selectedTopic == topic
+                            ) {
+                                viewModel.selectedTopic = (viewModel.selectedTopic == topic) ? nil : topic
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Row 2: ICF Level & Free vs Paid
+            HStack(alignment: .top, spacing: 12) {
+                // ICF Level Filter
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("ICF Credential")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(ColorPalette.textMuted)
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            filterChip(title: "All Levels", isSelected: viewModel.selectedICFLevel == nil) {
+                                viewModel.selectedICFLevel = nil
+                            }
+
+                            ForEach(ICFLevel.allCases) { level in
+                                filterChip(
+                                    title: level.badgeTitle,
+                                    isSelected: viewModel.selectedICFLevel == level
+                                ) {
+                                    viewModel.selectedICFLevel = (viewModel.selectedICFLevel == level) ? nil : level
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Row 3: Session Tier (Free vs Paid) & Language & Favorites
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Session Type & Language")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(ColorPalette.textMuted)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        // Pricing Tier Filter
+                        filterChip(title: "All Rates", isSelected: viewModel.selectedTier == nil) {
+                            viewModel.selectedTier = nil
+                        }
+
+                        filterChip(
+                            title: "Free Pro-Bono ($0)",
+                            systemImage: "sparkles",
+                            isSelected: viewModel.selectedTier == .free
+                        ) {
+                            viewModel.selectedTier = (viewModel.selectedTier == .free) ? nil : .free
+                        }
+
+                        filterChip(
+                            title: "Certified Paid",
+                            systemImage: "creditcard.fill",
+                            isSelected: viewModel.selectedTier == .paid
+                        ) {
+                            viewModel.selectedTier = (viewModel.selectedTier == .paid) ? nil : .paid
+                        }
+
+                        Divider()
+                            .frame(height: 18)
+                            .background(ColorPalette.cardBorder)
+
+                        // Language selector chips
+                        filterChip(title: "All Languages", isSelected: viewModel.selectedLanguage == nil) {
+                            viewModel.selectedLanguage = nil
+                        }
+
+                        let popularLanguages = ["English", "Spanish", "French", "German", "Mandarin"]
+                        ForEach(popularLanguages, id: \.self) { lang in
+                            filterChip(
+                                title: lang,
+                                isSelected: viewModel.selectedLanguage == lang
+                            ) {
+                                viewModel.selectedLanguage = (viewModel.selectedLanguage == lang) ? nil : lang
+                            }
+                        }
+
+                        Divider()
+                            .frame(height: 18)
+                            .background(ColorPalette.cardBorder)
+
+                        // Favorites Filter
+                        filterChip(
+                            title: viewModel.favoriteIds.isEmpty ? "Favorites" : "Favorites (\(viewModel.favoriteIds.count))",
+                            systemImage: viewModel.showFavoritesOnly ? "heart.fill" : "heart",
+                            isSelected: viewModel.showFavoritesOnly
+                        ) {
+                            viewModel.showFavoritesOnly.toggle()
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var resultsHeader: some View {
+        HStack {
+            Text("\(viewModel.filteredCoaches.count) Verified Coaches")
                 .font(.caption)
-                .fontWeight(isSelected ? .semibold : .regular)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(isSelected ? ColorPalette.calmingCyan.opacity(0.2) : ColorPalette.elevatedCard)
-                .foregroundStyle(isSelected ? ColorPalette.calmingCyan : ColorPalette.textSecondary)
-                .clipShape(Capsule())
-                .overlay(
-                    Capsule()
-                        .stroke(isSelected ? ColorPalette.calmingCyan : ColorPalette.cardBorder, lineWidth: 1)
-                )
+                .fontWeight(.semibold)
+                .foregroundStyle(ColorPalette.textSecondary)
+
+            Spacer()
+
+            if viewModel.selectedTopic != nil || viewModel.selectedICFLevel != nil || viewModel.selectedTier != nil || viewModel.selectedLanguage != nil || viewModel.showFavoritesOnly {
+                Button("Reset Filters") {
+                    viewModel.selectedTopic = nil
+                    viewModel.selectedICFLevel = nil
+                    viewModel.selectedTier = nil
+                    viewModel.selectedLanguage = nil
+                    viewModel.showFavoritesOnly = false
+                }
+                .font(.caption2)
+                .foregroundStyle(ColorPalette.calmingCyan)
+            }
+        }
+    }
+
+    private var emptyFilterState: some View {
+        GlassCard(style: .standard, cornerRadius: 16) {
+            VStack(spacing: 12) {
+                Image(systemName: "line.3.horizontal.decrease.circle")
+                    .font(.largeTitle)
+                    .foregroundStyle(ColorPalette.textMuted)
+
+                Text("No coaches match this filter combination")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(ColorPalette.textPrimary)
+
+                Text("Try loosening your topic, ICF credential, or language criteria.")
+                    .font(.caption)
+                    .foregroundStyle(ColorPalette.textSecondary)
+                    .multilineTextAlignment(.center)
+
+                AnonyButton(
+                    title: "Reset All Filters",
+                    systemImage: "arrow.counterclockwise",
+                    variant: .secondary,
+                    size: .small
+                ) {
+                    viewModel.selectedTopic = nil
+                    viewModel.selectedICFLevel = nil
+                    viewModel.selectedTier = nil
+                    viewModel.selectedLanguage = nil
+                    viewModel.showFavoritesOnly = false
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+        }
+    }
+
+    private func filterChip(
+        title: String,
+        systemImage: String? = nil,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                if let systemImage = systemImage {
+                    Image(systemName: systemImage)
+                        .font(.caption2)
+                }
+
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(isSelected ? .semibold : .regular)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(isSelected ? ColorPalette.calmingCyan.opacity(0.2) : ColorPalette.elevatedCard)
+            .foregroundStyle(isSelected ? ColorPalette.calmingCyan : ColorPalette.textSecondary)
+            .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(isSelected ? ColorPalette.calmingCyan : ColorPalette.cardBorder, lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
     }
 
     private func coachCard(_ coach: Coach) -> some View {
-        GlassCard(style: .standard, cornerRadius: 16) {
+        let isFavorite = viewModel.isFavorite(coach.id)
+
+        return GlassCard(style: .standard, cornerRadius: 16) {
             VStack(alignment: .leading, spacing: 14) {
+                // Coach Profile Header Row
                 HStack(spacing: 12) {
-                    AvatarCircleView(seed: coach.avatarSeed, size: .medium)
+                    AvatarCircleView(seed: coach.avatarSeed, size: .medium, showAura: true)
 
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 6) {
@@ -280,6 +579,49 @@ public struct DiscoverAndMatchView: View {
 
                     Spacer()
 
+                    // Favorite Toggle Button (Tapping persists status in real time)
+                    Button {
+                        Task {
+                            await viewModel.toggleFavorite(for: coach.id)
+                        }
+                    } label: {
+                        Image(systemName: isFavorite ? "heart.fill" : "heart")
+                            .font(.system(size: 18))
+                            .foregroundStyle(isFavorite ? ColorPalette.mutedLavender : ColorPalette.textMuted)
+                            .padding(8)
+                            .background(ColorPalette.warmCharcoal)
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                // Badges Row: ICF Badge, Rate, Rating & Topic
+                HStack(spacing: 8) {
+                    // ICF Badge
+                    TagPillView(
+                        text: coach.icfLevel.badgeTitle,
+                        systemImage: "award.fill",
+                        variant: .lavender
+                    )
+
+                    // Hourly Rate Badge
+                    if coach.tier == .free {
+                        TagPillView(
+                            text: "Free Pro-Bono",
+                            systemImage: "sparkles",
+                            variant: .sage
+                        )
+                    } else {
+                        TagPillView(
+                            text: "$\(coach.hourlyRate)/hr",
+                            systemImage: "creditcard.fill",
+                            variant: .cyan
+                        )
+                    }
+
+                    Spacer()
+
+                    // Rating Pill
                     HStack(spacing: 4) {
                         Image(systemName: "star.fill")
                             .font(.caption2)
@@ -295,17 +637,18 @@ public struct DiscoverAndMatchView: View {
                     .clipShape(Capsule())
                 }
 
+                // Topic & Languages Sub-Row
                 HStack(spacing: 8) {
                     TagPillView(
-                        text: coach.specialty.title,
-                        systemImage: coach.specialty.systemImage,
+                        text: coach.topic.title,
+                        systemImage: coach.topic.systemImage,
                         variant: .cyan
                     )
 
                     TagPillView(
-                        text: coach.tier.title,
-                        systemImage: coach.tier.systemImage,
-                        variant: coach.tier == .free ? .sage : .lavender
+                        text: coach.languages.joined(separator: ", "),
+                        systemImage: "globe",
+                        variant: .neutral
                     )
 
                     Spacer()
@@ -317,7 +660,7 @@ public struct DiscoverAndMatchView: View {
 
                 // Available Slots Quick View
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Available Slots:")
+                    Text("Available Audio Slots:")
                         .font(.caption2)
                         .fontWeight(.semibold)
                         .foregroundStyle(ColorPalette.textMuted)

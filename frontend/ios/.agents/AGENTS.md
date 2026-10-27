@@ -32,6 +32,9 @@ make dev
 - Annotate Swift Testing suites (`@Suite`) interacting with Keychain or shared singletons with `.serialized` to prevent parallel execution race conditions.
 - Enforce password boundary rules with simple count checks (`password.count > 8 && password.count <= 32`) without adding extraneous complexity rules unless explicitly specified.
 - Extract high-level navigation and routing state machines (e.g. flow views like `ClientRootFlowView`) into the `AnonyCore` library rather than keeping them private inside executable entry points (`ContentView`) to ensure full Swift Testing coverage.
+- Centralize all API endpoint URLs and route builders in `APIEndpoints` and `APIConfig` under `Sources/AnonyCore/Services/` and reference them across network clients and mock services rather than hardcoding endpoint strings.
+- In Swift Concurrency (`Sendable`), avoid using `NSLock` inside `async` methods; prefer immutable values, actor isolation, or `@MainActor` state wrappers.
+- Decouple directory and filter state into `@MainActor` ObservableObject view models (e.g. `CoachDiscoveryViewModel`) to enable real-time reactive filtering and clean Swift Testing coverage.
 
 ### Ask first
 - Introducing third-party Swift Package dependencies beyond `livekit-client-swift`.

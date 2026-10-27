@@ -124,4 +124,76 @@ struct StruggleCategoryAndModelTests {
         #expect(decoded.coachAlias == session.coachAlias)
         #expect(decoded.status == session.status)
     }
+
+    @Test("CoachTopic cases and metadata")
+    func testCoachTopicCases() {
+        let cases = CoachTopic.allCases
+        #expect(cases.count == 4)
+        #expect(cases.contains(.careerBurnout))
+        #expect(cases.contains(.relationship))
+        #expect(cases.contains(.life))
+        #expect(cases.contains(.executive))
+
+        for topic in cases {
+            #expect(!topic.title.isEmpty)
+            #expect(!topic.subtitle.isEmpty)
+            #expect(!topic.systemImage.isEmpty)
+            #expect(topic.id == topic.rawValue)
+        }
+    }
+
+    @Test("ICFLevel cases and badge metadata")
+    func testICFLevelCases() {
+        let cases = ICFLevel.allCases
+        #expect(cases.count == 3)
+        #expect(cases.contains(.acc))
+        #expect(cases.contains(.pcc))
+        #expect(cases.contains(.mcc))
+
+        for level in cases {
+            #expect(!level.badgeTitle.isEmpty)
+            #expect(!level.credentialName.isEmpty)
+            #expect(level.minExperienceHours > 0)
+        }
+    }
+
+    @Test("CoachFilter matches predicate")
+    func testCoachFilterMatches() {
+        let coach = Coach(
+            alias: "TestCoach",
+            title: "Test Guide",
+            specialty: .career,
+            topic: .careerBurnout,
+            tier: .free,
+            icfLevel: .pcc,
+            languages: ["English", "Spanish"],
+            hourlyRate: 0,
+            rating: 5.0,
+            sessionCount: 50,
+            avatarSeed: "TestCoach"
+        )
+
+        let emptyFilter = CoachFilter()
+        #expect(emptyFilter.isDefault == true)
+        #expect(emptyFilter.matches(coach: coach, isFavorite: false) == true)
+
+        let matchingFilter = CoachFilter(topic: .careerBurnout, icfLevel: .pcc, tier: .free, language: "Spanish")
+        #expect(matchingFilter.matches(coach: coach, isFavorite: false) == true)
+
+        let nonMatchingTopic = CoachFilter(topic: .life)
+        #expect(nonMatchingTopic.matches(coach: coach, isFavorite: false) == false)
+
+        let nonMatchingICF = CoachFilter(icfLevel: .mcc)
+        #expect(nonMatchingICF.matches(coach: coach, isFavorite: false) == false)
+
+        let nonMatchingTier = CoachFilter(tier: .paid)
+        #expect(nonMatchingTier.matches(coach: coach, isFavorite: false) == false)
+
+        let nonMatchingLang = CoachFilter(language: "German")
+        #expect(nonMatchingLang.matches(coach: coach, isFavorite: false) == false)
+
+        let favoritesOnlyFilter = CoachFilter(favoritesOnly: true)
+        #expect(favoritesOnlyFilter.matches(coach: coach, isFavorite: false) == false)
+        #expect(favoritesOnlyFilter.matches(coach: coach, isFavorite: true) == true)
+    }
 }
