@@ -33,9 +33,15 @@ public final class CoachDiscoveryViewModel: ObservableObject {
     // Blind match state
     @Published public var isBlindMatchActive: Bool = false
     @Published public var blindMatchPrompt: String = ""
+    @Published public var selectedTimeWindow: BlindMatchTimeWindow = .evening
+    @Published public var selectedDate: Date = Date()
     @Published public var isBlindMatching: Bool = false
     @Published public var blindMatchResult: Coach? = nil
+    @Published public var scheduledSession: ScheduledBlindMatchSession? = nil
     @Published public var blindMatchError: String? = nil
+    @Published public var isCooldownActive: Bool = false
+    @Published public var cooldownDaysRemaining: Int = 0
+    @Published public var isLifetimeCapReached: Bool = false
 
     public let coachService: CoachServiceProtocol
 
@@ -94,13 +100,43 @@ public final class CoachDiscoveryViewModel: ObservableObject {
         }
     }
 
-    public func submitBlindMatch() async {
+    public func submitBlindMatch(profile: ClientProfile? = nil) async {
         guard !blindMatchPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         isBlindMatching = true
         blindMatchError = nil
+        isCooldownActive = false
+        isLifetimeCapReached = false
+
+        if let profile = profile {
+            if profile.hasReachedLifetimeCap {
+                self.isLifetimeCapReached = true
+                self.blindMatchError = "You have completed all 6 free pro-bono sessions. Switch to Regular Mode in your profile to browse coaches and schedule paid sessions."
+                self.isBlindMatching = false
+                return
+            }
+            if profile.isCooldownActive() {
+                self.isCooldownActive = true
+                self.cooldownDaysRemaining = profile.daysUntilNextFreeSession()
+                self.blindMatchError = "You can book 1 free pro-bono session every 14 days. Your next free session unlocks in \(profile.daysUntilNextFreeSession()) days."
+                self.isBlindMatching = false
+                return
+            }
+        }
+
         do {
             let matched = try await coachService.performBlindMatch(prompt: blindMatchPrompt)
             self.blindMatchResult = matched
+            self.scheduledSession = ScheduledBlindMatchSession(
+                coachAlias: matched.alias,
+                coachIcfLevel: matched.icfLevel.badgeTitle,
+                topic: blindMatchPrompt.trimmingCharacters(in: .whitespacesAndNewlines),
+                scheduledTime: selectedDate,
+                status: "CONFIRMED",
+                isProBono: true,
+                freeSessionsUsed: (profile?.freeSessionsUsed ?? 0) + 1,
+                maxFreeSessions: 6,
+                nextFreeSessionAvailableAt: Date().addingTimeInterval(14 * 86400)
+            )
             self.isBlindMatchActive = false
         } catch {
             self.blindMatchError = error.localizedDescription
@@ -111,6 +147,10 @@ public final class CoachDiscoveryViewModel: ObservableObject {
     public func resetBlindMatch() {
         blindMatchPrompt = ""
         blindMatchResult = nil
+        scheduledSession = nil
         blindMatchError = nil
+        isCooldownActive = false
+        cooldownDaysRemaining = 0
+        isLifetimeCapReached = false
     }
 }

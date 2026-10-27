@@ -38,6 +38,7 @@ make dev
 - Store coaching session and booking slots in absolute UTC (`Date`) on domain models (`CoachSlot`), converting dynamically to client local `TimeZone` at the presentation layer with explicit `DateFormatter` configurations.
 - In Swift Testing with SwiftUI struct views, avoid `#expect(view != nil)` on non-optional structs; inspect `Mirror(reflecting: view)` or assert state properties directly to prevent compiler comparison warnings.
 - Persist authenticated user role (`CLIENT` or `COACH`) in Keychain via `IdentityService` and dynamically route post-login views based on role and verification state (`GET /api/v1/coaches/me`).
+- In Anonymous Blind Match flows, prevent direct coach profile browsing and slot reservation; capture struggle prompts and preferred time windows, presenting confirmed session booking details directly.
 
 ### Ask first
 - Introducing third-party Swift Package dependencies beyond `livekit-client-swift`.

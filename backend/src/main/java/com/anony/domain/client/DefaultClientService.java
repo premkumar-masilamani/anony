@@ -14,7 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Default implementation of {@link ClientService} handling client registration and profile lookups.
+ * Default implementation of {@link ClientService} handling client registration, profile lookups,
+ * and privacy mode updates.
  */
 @Service
 public class DefaultClientService implements ClientService {
@@ -74,6 +75,9 @@ public class DefaultClientService implements ClientService {
             clientEntity.setAlias(alias);
             clientEntity.setAnonymous(true);
             clientEntity.setOnboarded(false);
+            clientEntity.setAnonymousMode(true);
+            clientEntity.setFreeSessionsCount(0);
+            clientEntity.setLastFreeSessionAt(null);
 
             ClientEntity savedClientEntity = clientRepository.save(clientEntity);
 
@@ -110,6 +114,25 @@ public class DefaultClientService implements ClientService {
     }
   }
 
+  @Override
+  @Transactional
+  public ClientProfileDetails updatePrivacyMode(UUID userId, boolean isAnonymousMode) {
+    if (userId != null) {
+      Optional<ClientEntity> clientOptional = clientRepository.findByUser_UserId(userId);
+
+      if (clientOptional.isPresent()) {
+        ClientEntity clientEntity = clientOptional.get();
+        clientEntity.setAnonymousMode(isAnonymousMode);
+        ClientEntity updatedClientEntity = clientRepository.save(clientEntity);
+        return toClientProfileDetails(updatedClientEntity, updatedClientEntity.getUser());
+      } else {
+        throw new IllegalStateException("Client profile not found for user identifier: " + userId);
+      }
+    } else {
+      throw new IllegalArgumentException("User identifier cannot be null.");
+    }
+  }
+
   private ClientProfileDetails toClientProfileDetails(
       ClientEntity clientEntity, UserEntity userEntity) {
     return new ClientProfileDetails(
@@ -121,6 +144,9 @@ public class DefaultClientService implements ClientService {
         clientEntity.getAlias(),
         clientEntity.getAnonymous(),
         clientEntity.getOnboarded(),
+        clientEntity.getAnonymousMode(),
+        clientEntity.getFreeSessionsCount(),
+        clientEntity.getLastFreeSessionAt(),
         clientEntity.getCreatedAt());
   }
 }

@@ -55,6 +55,7 @@ public struct MainShellView: View {
                     DiscoverAndMatchView(
                         initialCategory: preferences?.struggleCategory,
                         initialTier: preferences?.pricingTier,
+                        profileService: profileService,
                         isAnonymousMode: isAnonymousMode
                     )
                     .tabItem {
@@ -174,6 +175,7 @@ public struct DiscoverAndMatchView: View {
     public let selectedCategory: StruggleCategory?
     public let selectedTier: PricingTier?
     public let coachService: CoachServiceProtocol
+    public let profileService: ProfileServiceProtocol
     public let isAnonymousMode: Bool
 
     @StateObject private var viewModel: CoachDiscoveryViewModel
@@ -192,12 +194,14 @@ public struct DiscoverAndMatchView: View {
         initialCategory: StruggleCategory? = nil,
         initialTier: PricingTier? = nil,
         coachService: CoachServiceProtocol = MockCoachService.shared,
+        profileService: ProfileServiceProtocol = UserDefaultsProfileService.shared,
         initialSelectedCoach: Coach? = nil,
         isAnonymousMode: Bool = true
     ) {
         self.selectedCategory = initialCategory
         self.selectedTier = initialTier
         self.coachService = coachService
+        self.profileService = profileService
         self._selectedCoachForProfile = State(initialValue: initialSelectedCoach)
         self.isAnonymousMode = isAnonymousMode
 
@@ -342,6 +346,89 @@ public struct DiscoverAndMatchView: View {
                     .foregroundStyle(ColorPalette.textSecondary)
                     .lineSpacing(3)
 
+                // 14-Day Cooldown Active Banner
+                if viewModel.isCooldownActive {
+                    GlassCard(style: .standard, cornerRadius: 12) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "clock.badge.checkmark")
+                                .font(.title3)
+                                .foregroundStyle(ColorPalette.calmingCyan)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("14-Day Cooldown Active")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(ColorPalette.textPrimary)
+
+                                Text("Your next free pro-bono session unlocks in \(viewModel.cooldownDaysRemaining) days. Switch to Regular Mode in My Profile to browse coaches and schedule paid sessions.")
+                                    .font(.caption2)
+                                    .foregroundStyle(ColorPalette.textSecondary)
+                                    .lineSpacing(2)
+                            }
+                        }
+                    }
+                }
+
+                // 6-Session Lifetime Cap Reached Banner
+                if viewModel.isLifetimeCapReached {
+                    GlassCard(style: .standard, cornerRadius: 12) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "shield.checkmark.fill")
+                                .font(.title3)
+                                .foregroundStyle(ColorPalette.mutedLavender)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Pro-Bono Lifetime Allowance Cap (6/6) Reached")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(ColorPalette.textPrimary)
+
+                                Text("You have completed all 6 free pro-bono sessions. Switch to Regular Mode in My Profile to browse coaches and schedule paid sessions.")
+                                    .font(.caption2)
+                                    .foregroundStyle(ColorPalette.textSecondary)
+                                    .lineSpacing(2)
+                            }
+                        }
+                    }
+                }
+
+                // Preferred Time Window Selector
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Preferred Time Window")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(ColorPalette.textMuted)
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(BlindMatchTimeWindow.allCases) { window in
+                                let isSelected = viewModel.selectedTimeWindow == window
+                                Button {
+                                    viewModel.selectedTimeWindow = window
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: window.systemImage)
+                                            .font(.caption2)
+                                        Text(window.title)
+                                            .font(.caption2)
+                                            .fontWeight(isSelected ? .semibold : .regular)
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(isSelected ? ColorPalette.calmingCyan.opacity(0.2) : ColorPalette.warmCharcoal)
+                                    .foregroundStyle(isSelected ? ColorPalette.calmingCyan : ColorPalette.textSecondary)
+                                    .clipShape(Capsule())
+                                    .overlay(
+                                        Capsule()
+                                            .stroke(isSelected ? ColorPalette.calmingCyan : ColorPalette.cardBorder, lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+
                 // Input Field
                 HStack(spacing: 8) {
                     TextField(
@@ -361,25 +448,28 @@ public struct DiscoverAndMatchView: View {
                     )
 
                     AnonyButton(
-                        title: viewModel.isBlindMatching ? "Matching..." : "Match",
-                        systemImage: viewModel.isBlindMatching ? nil : "arrow.right",
+                        title: viewModel.isBlindMatching ? "Matching..." : "Auto-Match",
+                        systemImage: viewModel.isBlindMatching ? nil : "sparkles",
                         variant: .primary,
                         size: .small,
                         isLoading: viewModel.isBlindMatching,
                         isDisabled: viewModel.blindMatchPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            || viewModel.isCooldownActive
+                            || viewModel.isLifetimeCapReached
                     ) {
                         Task {
-                            await viewModel.submitBlindMatch()
+                            let profile = profileService.getProfile()
+                            await viewModel.submitBlindMatch(profile: profile)
                         }
                     }
                 }
 
-                // Blind Match Result Card Reveal
-                if let matched = viewModel.blindMatchResult {
+                // Scheduled Session Confirmation Card
+                if let session = viewModel.scheduledSession {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
                             TagPillView(
-                                text: "Blind Match Found",
+                                text: "Session Confirmed & Scheduled",
                                 systemImage: "checkmark.circle.fill",
                                 variant: .sage
                             )
@@ -392,42 +482,30 @@ public struct DiscoverAndMatchView: View {
                         }
 
                         HStack(spacing: 12) {
-                            AvatarCircleView(seed: matched.avatarSeed, size: .small, showAura: true)
+                            AvatarCircleView(seed: session.coachAlias, size: .small, showAura: true)
 
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 6) {
-                                    Text(matched.alias)
+                                    Text(session.coachAlias)
                                         .font(.subheadline)
                                         .fontWeight(.semibold)
                                         .foregroundStyle(ColorPalette.textPrimary)
 
-                                    TagPillView(text: matched.icfLevel.badgeTitle, variant: .lavender)
+                                    TagPillView(text: session.coachIcfLevel, variant: .lavender)
                                 }
 
-                                Text(matched.title)
+                                Text(session.topic)
                                     .font(.caption2)
                                     .foregroundStyle(ColorPalette.textSecondary)
+                                    .lineLimit(2)
                             }
 
                             Spacer()
 
-                            Text("Free")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundStyle(ColorPalette.sageGreen)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(ColorPalette.warmCharcoal)
-                                .clipShape(Capsule())
-                        }
-
-                        AnonyButton(
-                            title: "View Profile & Book Free Call",
-                            systemImage: "waveform",
-                            variant: .secondary,
-                            size: .small
-                        ) {
-                            selectedCoachForProfile = matched
+                            TagPillView(
+                                text: "Session \(session.freeSessionsUsed) of \(session.maxFreeSessions) Free",
+                                variant: .sage
+                            )
                         }
                     }
                     .padding(12)

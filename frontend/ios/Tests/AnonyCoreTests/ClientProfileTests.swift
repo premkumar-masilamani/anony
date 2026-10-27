@@ -122,6 +122,19 @@ struct ClientProfileTests {
         #expect(saved.primaryFocus == .career)
     }
 
+    @Test("ProfileViewModel rejects invalid email formats")
+    @MainActor
+    func testProfileViewModelInvalidEmail() async throws {
+        let service = MockProfileService()
+        let viewModel = ProfileViewModel(profileService: service)
+
+        viewModel.email = "invalidemailformat"
+        await viewModel.saveProfile()
+
+        #expect(viewModel.errorMessage == "Please enter a valid email address.")
+        #expect(viewModel.saveSuccessMessage == nil)
+    }
+
     @Test("MyProfileView instantiates cleanly on MainActor")
     @MainActor
     func testMyProfileViewInstantiation() {

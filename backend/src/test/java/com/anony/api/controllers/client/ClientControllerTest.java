@@ -2,6 +2,8 @@ package com.anony.api.controllers.client;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -65,6 +67,9 @@ class ClientControllerTest {
             "Courageous Owl",
             true,
             false,
+            true,
+            0,
+            null,
             Instant.now());
 
     when(clientService.getClientProfileByUserId(userId)).thenReturn(clientProfileDetails);
@@ -77,7 +82,113 @@ class ClientControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.clientId").value(clientId.toString()))
         .andExpect(jsonPath("$.alias").value("Courageous Owl"))
-        .andExpect(jsonPath("$.isAnonymous").value(true));
+        .andExpect(jsonPath("$.isAnonymous").value(true))
+        .andExpect(jsonPath("$.isAnonymousMode").value(true))
+        .andExpect(jsonPath("$.freeSessionsCount").value(0));
+  }
+
+  @Test
+  @DisplayName("PATCH /api/v1/clients/me/privacy-mode should return 200 OK and update anonymity mode")
+  void testPatchPrivacyModeSuccess() throws Exception {
+    UUID userId = UUID.randomUUID();
+    UUID clientId = UUID.randomUUID();
+    AuthenticatedUser principal =
+        new AuthenticatedUser(userId, "client@example.com", UserRole.CLIENT, UUID.randomUUID());
+
+    UsernamePasswordAuthenticationToken authentication =
+        new UsernamePasswordAuthenticationToken(principal, null, List.of());
+    SecurityContextHolder.getContext().setAuthentication(authentication);
+
+    ClientProfileDetails updatedDetails =
+        new ClientProfileDetails(
+            clientId,
+            userId,
+            "client@example.com",
+            "Arjun",
+            "Mehta",
+            "Courageous Owl",
+            true,
+            false,
+            false,
+            0,
+            null,
+            Instant.now());
+
+    when(clientService.updatePrivacyMode(userId, false)).thenReturn(updatedDetails);
+
+    String payload = "{\"is_anonymous_mode\": false}";
+
+    mockMvc
+        .perform(
+            patch("/api/v1/clients/me/privacy-mode")
+                .principal(authentication)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.isAnonymousMode").value(false));
+  }
+
+  @Test
+  @DisplayName("PUT /api/v1/clients/me/privacy-mode should return 200 OK and update anonymity mode")
+  void testPutPrivacyModeSuccess() throws Exception {
+    UUID userId = UUID.randomUUID();
+    UUID clientId = UUID.randomUUID();
+    AuthenticatedUser principal =
+        new AuthenticatedUser(userId, "client@example.com", UserRole.CLIENT, UUID.randomUUID());
+
+    UsernamePasswordAuthenticationToken authentication =
+        new UsernamePasswordAuthenticationToken(principal, null, List.of());
+    SecurityContextHolder.getContext().setAuthentication(authentication);
+
+    ClientProfileDetails updatedDetails =
+        new ClientProfileDetails(
+            clientId,
+            userId,
+            "client@example.com",
+            "Arjun",
+            "Mehta",
+            "Courageous Owl",
+            true,
+            false,
+            true,
+            1,
+            Instant.now(),
+            Instant.now());
+
+    when(clientService.updatePrivacyMode(userId, true)).thenReturn(updatedDetails);
+
+    String payload = "{\"is_anonymous_mode\": true}";
+
+    mockMvc
+        .perform(
+            put("/api/v1/clients/me/privacy-mode")
+                .principal(authentication)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.isAnonymousMode").value(true));
+  }
+
+  @Test
+  @DisplayName("PATCH /api/v1/clients/me/privacy-mode should return 403 Forbidden for coach")
+  void testPatchPrivacyModeForbiddenForCoach() throws Exception {
+    UUID userId = UUID.randomUUID();
+    AuthenticatedUser principal =
+        new AuthenticatedUser(userId, "coach@example.com", UserRole.COACH, UUID.randomUUID());
+
+    UsernamePasswordAuthenticationToken authentication =
+        new UsernamePasswordAuthenticationToken(principal, null, List.of());
+    SecurityContextHolder.getContext().setAuthentication(authentication);
+
+    String payload = "{\"is_anonymous_mode\": false}";
+
+    mockMvc
+        .perform(
+            patch("/api/v1/clients/me/privacy-mode")
+                .principal(authentication)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+        .andExpect(status().isForbidden());
   }
 
   @Test

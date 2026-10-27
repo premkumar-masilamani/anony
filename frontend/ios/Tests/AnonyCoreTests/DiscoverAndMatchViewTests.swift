@@ -78,18 +78,79 @@ struct DiscoverAndMatchViewTests {
         #expect(!storage.getFavorites().contains(firstCoach.id))
     }
 
-    @Test("DiscoverAndMatchViewModel performs blind match")
+    @Test("DiscoverAndMatchViewModel performs blind match and schedules session")
     @MainActor
     func testBlindMatchInViewModel() async throws {
         let storage = InMemoryFavoriteStorage()
         let service = MockCoachService(favoriteStorage: storage)
         let viewModel = CoachDiscoveryViewModel(coachService: service)
 
+        viewModel.selectedTimeWindow = .morning
         viewModel.blindMatchPrompt = "Struggling with burnout and boundaries at my tech company"
         await viewModel.submitBlindMatch()
 
         #expect(viewModel.blindMatchResult != nil)
         #expect(viewModel.blindMatchResult?.tier == .free)
+        #expect(viewModel.scheduledSession != nil)
+        #expect(viewModel.scheduledSession?.status == "CONFIRMED")
+        #expect(viewModel.scheduledSession?.isProBono == true)
         #expect(viewModel.isBlindMatchActive == false)
+
+        viewModel.resetBlindMatch()
+        #expect(viewModel.blindMatchPrompt.isEmpty)
+        #expect(viewModel.scheduledSession == nil)
+    }
+
+    @Test("DiscoverAndMatchViewModel enforces 14-day cooldown for client profile")
+    @MainActor
+    func testBlindMatchCooldownEnforcement() async throws {
+        let storage = InMemoryFavoriteStorage()
+        let service = MockCoachService(favoriteStorage: storage)
+        let viewModel = CoachDiscoveryViewModel(coachService: service)
+
+        let profile = ClientProfile(
+            alias: "CooldownClient",
+            freeSessionsUsed: 2,
+            lastFreeSessionDate: Date().addingTimeInterval(-5 * 86400) // 5 days ago
+        )
+
+        viewModel.blindMatchPrompt = "Need pro bono session"
+        await viewModel.submitBlindMatch(profile: profile)
+
+        #expect(viewModel.isCooldownActive == true)
+        #expect(viewModel.cooldownDaysRemaining == 9)
+        #expect(viewModel.scheduledSession == nil)
+        #expect(viewModel.blindMatchError != nil)
+    }
+
+    @Test("DiscoverAndMatchViewModel enforces 6-session lifetime cap for client profile")
+    @MainActor
+    func testBlindMatchLifetimeCapEnforcement() async throws {
+        let storage = InMemoryFavoriteStorage()
+        let service = MockCoachService(favoriteStorage: storage)
+        let viewModel = CoachDiscoveryViewModel(coachService: service)
+
+        let profile = ClientProfile(
+            alias: "CappedClient",
+            freeSessionsUsed: 6
+        )
+
+        viewModel.blindMatchPrompt = "Need session"
+        await viewModel.submitBlindMatch(profile: profile)
+
+        #expect(viewModel.isLifetimeCapReached == true)
+        #expect(viewModel.scheduledSession == nil)
+        #expect(viewModel.blindMatchError != nil)
+    }
+
+    @Test("DiscoverAndMatchView instantiates cleanly in both anonymous and regular modes")
+    @MainActor
+    func testDualModeInstantiation() {
+        let service = MockCoachService()
+        let anonView = DiscoverAndMatchView(coachService: service, isAnonymousMode: true)
+        let regularView = DiscoverAndMatchView(coachService: service, isAnonymousMode: false)
+
+        #expect(anonView.isAnonymousMode == true)
+        #expect(regularView.isAnonymousMode == false)
     }
 }

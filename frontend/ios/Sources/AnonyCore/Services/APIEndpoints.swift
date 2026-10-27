@@ -39,7 +39,7 @@ public enum APIEndpoints {
     }
 
     // MARK: - Matching, Sessions & Bookings
-    public static let blindMatch = "/api/v1/match/blind"
+    public static let blindMatch = "/api/v1/sessions/blind-match"
     public static let sessions = "/api/v1/sessions"
     public static let bookings = "/api/v1/bookings"
 

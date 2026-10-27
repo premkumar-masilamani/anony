@@ -70,10 +70,17 @@ public final class ProfileViewModel: ObservableObject {
         errorMessage = nil
         saveSuccessMessage = nil
 
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedEmail.isEmpty && (!trimmedEmail.contains("@") || !trimmedEmail.contains(".")) {
+            self.errorMessage = "Please enter a valid email address."
+            isSaving = false
+            return
+        }
+
         let updatedProfile = ClientProfile(
             alias: alias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? ClientProfile.generateTranquilAlias() : alias,
             fullName: fullName.trimmingCharacters(in: .whitespacesAndNewlines),
-            email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+            email: trimmedEmail,
             isAnonymousMode: isAnonymousMode,
             preferredLanguage: preferredLanguage,
             timeZoneIdentifier: timeZoneIdentifier,
