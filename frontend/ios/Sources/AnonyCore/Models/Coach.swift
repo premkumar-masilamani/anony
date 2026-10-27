@@ -16,6 +16,13 @@ public struct Coach: Identifiable, Codable, Sendable, Equatable {
     public let sessionCount: Int
     public let avatarSeed: String
     public let availableSlots: [String]
+    public let bio: String
+    public let philosophy: String
+    public let photoURL: String?
+    public let videoPreviewTitle: String
+    public let videoPreviewDuration: String
+    public let testimonials: [CoachTestimonial]
+    public let slots: [CoachSlot]
 
     public init(
         id: UUID = UUID(),
@@ -30,7 +37,14 @@ public struct Coach: Identifiable, Codable, Sendable, Equatable {
         rating: Double,
         sessionCount: Int,
         avatarSeed: String,
-        availableSlots: [String] = ["Today 2:30 PM", "Tomorrow 10:00 AM", "Thu 4:00 PM"]
+        availableSlots: [String] = ["Today 2:30 PM", "Tomorrow 10:00 AM", "Thu 4:00 PM"],
+        bio: String = "Dedicated ICF certified coach helping clients navigate complex transitions, executive leadership, and burnout prevention with confidential empathy.",
+        philosophy: String = "I believe every individual holds internal clarity. My ontological coaching framework creates a zero-pressure space to explore blind spots and build sustainable agency.",
+        photoURL: String? = nil,
+        videoPreviewTitle: String = "1-Min Coaching Style & Chemistry Preview",
+        videoPreviewDuration: String = "1:00",
+        testimonials: [CoachTestimonial] = [],
+        slots: [CoachSlot] = []
     ) {
         self.id = id
         self.alias = alias
@@ -43,6 +57,13 @@ public struct Coach: Identifiable, Codable, Sendable, Equatable {
         self.sessionCount = sessionCount
         self.avatarSeed = avatarSeed
         self.availableSlots = availableSlots
+        self.bio = bio
+        self.philosophy = philosophy
+        self.photoURL = photoURL
+        self.videoPreviewTitle = videoPreviewTitle
+        self.videoPreviewDuration = videoPreviewDuration
+        self.testimonials = testimonials
+        self.slots = slots
 
         if let topic = topic {
             self.topic = topic
@@ -66,6 +87,7 @@ public struct Coach: Identifiable, Codable, Sendable, Equatable {
 
     private enum CodingKeys: String, CodingKey {
         case id, alias, title, specialty, topic, tier, icfLevel, languages, hourlyRate, rating, sessionCount, avatarSeed, availableSlots
+        case bio, philosophy, photoURL, videoPreviewTitle, videoPreviewDuration, testimonials, slots
     }
 
     public init(from decoder: Decoder) throws {
@@ -98,6 +120,14 @@ public struct Coach: Identifiable, Codable, Sendable, Equatable {
         self.sessionCount = try container.decode(Int.self, forKey: .sessionCount)
         self.avatarSeed = try container.decode(String.self, forKey: .avatarSeed)
         self.availableSlots = try container.decodeIfPresent([String].self, forKey: .availableSlots) ?? ["Today 2:30 PM", "Tomorrow 10:00 AM"]
+
+        self.bio = try container.decodeIfPresent(String.self, forKey: .bio) ?? "Dedicated ICF certified coach helping clients navigate complex transitions, executive leadership, and burnout prevention with confidential empathy."
+        self.philosophy = try container.decodeIfPresent(String.self, forKey: .philosophy) ?? "I believe every individual holds internal clarity. My ontological coaching framework creates a zero-pressure space to explore blind spots and build sustainable agency."
+        self.photoURL = try container.decodeIfPresent(String.self, forKey: .photoURL)
+        self.videoPreviewTitle = try container.decodeIfPresent(String.self, forKey: .videoPreviewTitle) ?? "1-Min Coaching Style & Chemistry Preview"
+        self.videoPreviewDuration = try container.decodeIfPresent(String.self, forKey: .videoPreviewDuration) ?? "1:00"
+        self.testimonials = try container.decodeIfPresent([CoachTestimonial].self, forKey: .testimonials) ?? []
+        self.slots = try container.decodeIfPresent([CoachSlot].self, forKey: .slots) ?? []
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -115,5 +145,12 @@ public struct Coach: Identifiable, Codable, Sendable, Equatable {
         try container.encode(sessionCount, forKey: .sessionCount)
         try container.encode(avatarSeed, forKey: .avatarSeed)
         try container.encode(availableSlots, forKey: .availableSlots)
+        try container.encode(bio, forKey: .bio)
+        try container.encode(philosophy, forKey: .philosophy)
+        try container.encodeIfPresent(photoURL, forKey: .photoURL)
+        try container.encode(videoPreviewTitle, forKey: .videoPreviewTitle)
+        try container.encode(videoPreviewDuration, forKey: .videoPreviewDuration)
+        try container.encode(testimonials, forKey: .testimonials)
+        try container.encode(slots, forKey: .slots)
     }
 }

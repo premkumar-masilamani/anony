@@ -17,10 +17,12 @@ struct APIEndpointsTests {
         #expect(APIEndpoints.coaches == "/api/v1/coaches")
         #expect(APIEndpoints.favorites == "/api/v1/coaches/favorites")
         #expect(APIEndpoints.blindMatch == "/api/v1/match/blind")
+        #expect(APIEndpoints.bookings == "/api/v1/bookings")
 
         let testId = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
         #expect(APIEndpoints.coachDetails(id: testId) == "/api/v1/coaches/11111111-2222-3333-4444-555555555555")
         #expect(APIEndpoints.coachFavorite(id: testId) == "/api/v1/coaches/11111111-2222-3333-4444-555555555555/favorite")
+        #expect(APIEndpoints.coachSlots(id: testId) == "/api/v1/coaches/11111111-2222-3333-4444-555555555555/slots")
     }
 
     @Test("APIEndpoints resolves full URL correctly")

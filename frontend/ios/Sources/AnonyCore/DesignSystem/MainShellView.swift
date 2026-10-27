@@ -119,6 +119,7 @@ public struct DiscoverAndMatchView: View {
 
     @StateObject private var viewModel: CoachDiscoveryViewModel
     @State private var isBlindMatchExpanded: Bool = false
+    @State public var selectedCoachForProfile: Coach? = nil
 
     public var coaches: [Coach] {
         viewModel.coaches.isEmpty ? MockCoachService.defaultCoaches : viewModel.coaches
@@ -131,11 +132,13 @@ public struct DiscoverAndMatchView: View {
     public init(
         initialCategory: StruggleCategory? = nil,
         initialTier: PricingTier? = nil,
-        coachService: CoachServiceProtocol = MockCoachService.shared
+        coachService: CoachServiceProtocol = MockCoachService.shared,
+        initialSelectedCoach: Coach? = nil
     ) {
         self.selectedCategory = initialCategory
         self.selectedTier = initialTier
         self.coachService = coachService
+        self._selectedCoachForProfile = State(initialValue: initialSelectedCoach)
 
         let initialTopic: CoachTopic?
         if let cat = initialCategory {
@@ -190,6 +193,15 @@ public struct DiscoverAndMatchView: View {
         }
         .task {
             await viewModel.loadCoaches()
+        }
+        .sheet(item: $selectedCoachForProfile) { coach in
+            CoachProfileView(
+                coach: coach,
+                coachService: coachService,
+                onDismiss: {
+                    selectedCoachForProfile = nil
+                }
+            )
         }
     }
 
@@ -317,12 +329,12 @@ public struct DiscoverAndMatchView: View {
                         }
 
                         AnonyButton(
-                            title: "Book Free Audio Call with \(matched.alias)",
+                            title: "View Profile & Book Free Call",
                             systemImage: "waveform",
                             variant: .secondary,
                             size: .small
                         ) {
-                            // Direct booking action hook
+                            selectedCoachForProfile = matched
                         }
                     }
                     .padding(12)
@@ -679,12 +691,12 @@ public struct DiscoverAndMatchView: View {
                 }
 
                 AnonyButton(
-                    title: "Book 1-on-1 Audio Call",
-                    systemImage: "waveform",
+                    title: "View Profile & Book",
+                    systemImage: "calendar.badge.clock",
                     variant: .secondary,
                     size: .small
                 ) {
-                    // Connect action hook
+                    selectedCoachForProfile = coach
                 }
             }
         }
