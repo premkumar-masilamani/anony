@@ -230,32 +230,39 @@ public struct RegistrationView: View {
                                 .padding(.top, 4)
                             }
 
-                            // Action Buttons
-                            VStack(spacing: 12) {
-                                AnonyButton(
-                                    title: authMode == .signIn ? "Sign In" : "Sign Up",
-                                    systemImage: "arrow.right.circle.fill",
-                                    variant: .primary,
-                                    size: .large,
-                                    isLoading: isLoading,
-                                    isDisabled: !canSubmit
-                                ) {
-                                    performAuthAction()
-                                }
-
-                                AnonyButton(
-                                    title: authMode == .signIn ? "Sign Up" : "Sign In",
-                                    systemImage: authMode == .signIn ? "person.badge.plus" : "arrow.backward.circle",
-                                    variant: .secondary,
-                                    size: .large
-                                ) {
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                        authMode = (authMode == .signIn ? .register : .signIn)
-                                        errorMessage = nil
-                                    }
-                                }
+                            // Submit Button
+                            AnonyButton(
+                                title: authMode == .signIn ? "Sign In" : "Sign Up",
+                                systemImage: "arrow.right.circle.fill",
+                                variant: .primary,
+                                size: .large,
+                                isLoading: isLoading,
+                                isDisabled: !canSubmit
+                            ) {
+                                performAuthAction()
                             }
                             .padding(.top, 8)
+
+                            // Auth Mode Switch Text Link
+                            Button {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                    authMode = (authMode == .signIn ? .register : .signIn)
+                                    errorMessage = nil
+                                }
+                            } label: {
+                                HStack(spacing: 5) {
+                                    Text(authMode == .signIn ? "Need to create an account?" : "Already registered?")
+                                        .foregroundColor(ColorPalette.textSecondary)
+                                    Text(authMode == .signIn ? "Sign Up" : "Sign In")
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(ColorPalette.calmingCyan)
+                                }
+                                .font(.subheadline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
                         }
                         .padding(20)
                     }
