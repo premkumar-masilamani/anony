@@ -115,7 +115,7 @@ public struct CoachProfileEditView: View {
                     // Header Bar
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Edit Credentials")
+                            Text("Edit Profile")
                                 .font(.title3)
                                 .fontWeight(.bold)
                                 .foregroundColor(ColorPalette.textPrimary)

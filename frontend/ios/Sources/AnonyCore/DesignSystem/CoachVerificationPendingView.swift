@@ -9,7 +9,6 @@ public struct CoachVerificationPendingView: View {
     private let onSignOut: () -> Void
 
     @State private var profile: CoachProfileResponse? = nil
-    @State private var isChecking: Bool = false
     @State private var statusMessage: String? = nil
     @State private var isEditSheetPresented: Bool = false
 
@@ -267,7 +266,7 @@ public struct CoachVerificationPendingView: View {
                     VStack(spacing: 12) {
                         if let coach = profile {
                             AnonyButton(
-                                title: "Edit Profile & Credentials",
+                                title: "Edit Profile",
                                 systemImage: "pencil.line",
                                 variant: .secondary,
                                 size: .large
@@ -280,27 +279,23 @@ public struct CoachVerificationPendingView: View {
                                     self.statusMessage = "Profile updated and resubmitted for review."
                                 }
                             }
+                        } else {
+                            AnonyButton(
+                                title: "Edit Profile",
+                                systemImage: "pencil.line",
+                                variant: .secondary,
+                                size: .large,
+                                isDisabled: true
+                            ) {}
                         }
 
                         AnonyButton(
-                            title: "Check Verification Status",
-                            systemImage: "arrow.clockwise",
+                            title: "Sign Out",
+                            systemImage: "rectangle.portrait.and.arrow.right",
                             variant: .primary,
-                            size: .large,
-                            isLoading: isChecking
+                            size: .large
                         ) {
-                            checkStatus()
-                        }
-
-                        Button(action: onSignOut) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "rectangle.portrait.and.arrow.right")
-                                Text("Sign Out")
-                            }
-                            .font(.footnote)
-                            .fontWeight(.medium)
-                            .foregroundColor(ColorPalette.textSecondary)
-                            .padding(.vertical, 8)
+                            onSignOut()
                         }
                     }
                     .padding(.horizontal, 24)
@@ -344,29 +339,6 @@ public struct CoachVerificationPendingView: View {
                 }
             } catch {
                 // If fetching fails, we keep coachEmail fallback
-            }
-        }
-    }
-
-    private func checkStatus() {
-        isChecking = true
-        statusMessage = nil
-
-        Task { @MainActor in
-            do {
-                let fetchedProfile = try await authService.fetchCoachProfile()
-                isChecking = false
-                self.profile = fetchedProfile
-
-                if fetchedProfile.isVerified {
-                    statusMessage = "Verification confirmed! Loading your workspace..."
-                    onVerified()
-                } else {
-                    statusMessage = "Your credentials are still undergoing review. We will notify you once verified."
-                }
-            } catch {
-                isChecking = false
-                statusMessage = "Unable to check status: \(error.localizedDescription)"
             }
         }
     }
