@@ -10,7 +10,7 @@ public enum PricingTier: String, CaseIterable, Identifiable, Codable, Sendable {
     public var title: String {
         switch self {
         case .free:
-            return "Community Pro-Bono Sanctuary"
+            return "Community Pro-Bono Guides"
         case .paid:
             return "Certified Specialist Coaching"
         }
@@ -19,7 +19,7 @@ public enum PricingTier: String, CaseIterable, Identifiable, Codable, Sendable {
     public var subtitle: String {
         switch self {
         case .free:
-            return "Zero cost, community-supported audio sanctuary with verified pro-bono guides."
+            return "Zero cost, community-supported audio sessions with verified pro-bono human coaches."
         case .paid:
             return "Direct access to certified master coaches with deep domain specialization."
         }

@@ -31,7 +31,7 @@ public struct RegistrationView: View {
 
     public var body: some View {
         ZStack {
-            ColorPalette.sanctuaryGradient
+            ColorPalette.backgroundGradient
                 .ignoresSafeArea()
 
             // Ambient background aura

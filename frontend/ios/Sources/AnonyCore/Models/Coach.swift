@@ -1,6 +1,7 @@
 import Foundation
 
-/// Professional or peer coach profile in the Anony sanctuary.
+/// Verified human coach profile in the Anony platform.
+/// All coaching sessions are conducted strictly between human clients and human coaches.
 public struct Coach: Identifiable, Codable, Sendable, Equatable {
     public let id: UUID
     public let alias: String
@@ -10,6 +11,7 @@ public struct Coach: Identifiable, Codable, Sendable, Equatable {
     public let rating: Double
     public let sessionCount: Int
     public let avatarSeed: String
+    public let availableSlots: [String]
 
     public init(
         id: UUID = UUID(),
@@ -19,7 +21,8 @@ public struct Coach: Identifiable, Codable, Sendable, Equatable {
         tier: PricingTier,
         rating: Double,
         sessionCount: Int,
-        avatarSeed: String
+        avatarSeed: String,
+        availableSlots: [String] = ["Today 2:30 PM", "Tomorrow 10:00 AM", "Thu 4:00 PM"]
     ) {
         self.id = id
         self.alias = alias
@@ -29,5 +32,6 @@ public struct Coach: Identifiable, Codable, Sendable, Equatable {
         self.rating = rating
         self.sessionCount = sessionCount
         self.avatarSeed = avatarSeed
+        self.availableSlots = availableSlots
     }
 }

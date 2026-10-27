@@ -43,10 +43,10 @@ struct ColorPaletteTests {
 
     @Test("Tranquil gradients exist")
     func tranquilGradientsExist() {
-        let sanctuary = ColorPalette.sanctuaryGradient
+        let background = ColorPalette.backgroundGradient
         let auraGlow = ColorPalette.auraGlowGradient
 
-        #expect(String(describing: sanctuary).contains("LinearGradient"))
+        #expect(String(describing: background).contains("LinearGradient"))
         #expect(String(describing: auraGlow).contains("RadialGradient"))
     }
 }

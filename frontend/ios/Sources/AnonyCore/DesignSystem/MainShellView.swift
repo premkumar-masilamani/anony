@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// 3-Tab Main Shell for authenticated clients:
-/// - Discover & Match: Curated anonymous coaches filtered by preferences
-/// - Muse Voice Guide: Interactive audio companion for daily reflections
-/// - My Sessions: Scheduled anonymous audio sanctuary sessions
+/// - Discover & Match: Curated verified human coaches filtered by preferences and availability
+/// - Muse Voice Guide: Educational audio guide explaining what coaching is and how to prepare
+/// - My Sessions: Scheduled 1-on-1 anonymous audio calls with human coaches
 public struct MainShellView: View {
     public let userAlias: String?
     public let userEmail: String?
@@ -26,12 +26,12 @@ public struct MainShellView: View {
 
     public var body: some View {
         ZStack {
-            ColorPalette.sanctuaryGradient
+            ColorPalette.backgroundGradient
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Top Sanctuary Header
-                sanctuaryHeader
+                // Top Client Header
+                clientHeader
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
                     .padding(.bottom, 8)
@@ -66,9 +66,9 @@ public struct MainShellView: View {
         }
     }
 
-    private var sanctuaryHeader: some View {
+    private var clientHeader: some View {
         HStack(spacing: 12) {
-            AvatarCircleView(seed: userAlias ?? "SanctuaryUser", size: .small)
+            AvatarCircleView(seed: userAlias ?? "AnonymousClient", size: .small)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(userAlias ?? "Anonymous Client")
@@ -81,7 +81,7 @@ public struct MainShellView: View {
                         .fill(ColorPalette.sageGreen)
                         .frame(width: 6, height: 6)
 
-                    Text("Safe Sanctuary Active")
+                    Text("Private Session Ready")
                         .font(.caption2)
                         .foregroundStyle(ColorPalette.sageGreen)
                 }
@@ -127,7 +127,8 @@ public struct DiscoverAndMatchView: View {
             tier: .free,
             rating: 4.96,
             sessionCount: 184,
-            avatarSeed: "AuraGuide"
+            avatarSeed: "AuraGuide",
+            availableSlots: ["Today 4:30 PM", "Tomorrow 2:30 PM", "Fri 11:00 AM"]
         ),
         Coach(
             alias: "EchoClaritas",
@@ -136,7 +137,8 @@ public struct DiscoverAndMatchView: View {
             tier: .paid,
             rating: 4.98,
             sessionCount: 312,
-            avatarSeed: "EchoClaritas"
+            avatarSeed: "EchoClaritas",
+            availableSlots: ["Today 2:30 PM", "Tomorrow 10:00 AM", "Thu 4:00 PM"]
         ),
         Coach(
             alias: "ZephyrMind",
@@ -145,7 +147,8 @@ public struct DiscoverAndMatchView: View {
             tier: .free,
             rating: 4.91,
             sessionCount: 97,
-            avatarSeed: "ZephyrMind"
+            avatarSeed: "ZephyrMind",
+            availableSlots: ["Today 2:30 PM", "Tomorrow 3:00 PM", "Fri 10:00 AM"]
         ),
         Coach(
             alias: "SolaceVessel",
@@ -154,7 +157,8 @@ public struct DiscoverAndMatchView: View {
             tier: .paid,
             rating: 4.99,
             sessionCount: 420,
-            avatarSeed: "SolaceVessel"
+            avatarSeed: "SolaceVessel",
+            availableSlots: ["Tomorrow 2:30 PM", "Fri 2:00 PM"]
         )
     ]
 
@@ -178,12 +182,12 @@ public struct DiscoverAndMatchView: View {
             VStack(alignment: .leading, spacing: 20) {
                 // Intro Banner
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Discover Guides")
+                    Text("Discover Human Coaches")
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundStyle(ColorPalette.textPrimary)
 
-                    Text("All coaches operate under strict zero-PII audio agreements.")
+                    Text("All coaching is 1-on-1 audio with verified human coaches. Zero video, zero AI.")
                         .font(.subheadline)
                         .foregroundStyle(ColorPalette.textSecondary)
                 }
@@ -257,9 +261,17 @@ public struct DiscoverAndMatchView: View {
                     AvatarCircleView(seed: coach.avatarSeed, size: .medium)
 
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(coach.alias)
-                            .font(.headline)
-                            .foregroundStyle(ColorPalette.textPrimary)
+                        HStack(spacing: 6) {
+                            Text(coach.alias)
+                                .font(.headline)
+                                .foregroundStyle(ColorPalette.textPrimary)
+
+                            TagPillView(
+                                text: "Verified Human",
+                                systemImage: "checkmark.seal.fill",
+                                variant: .sage
+                            )
+                        }
 
                         Text(coach.title)
                             .font(.caption)
@@ -303,8 +315,28 @@ public struct DiscoverAndMatchView: View {
                         .foregroundStyle(ColorPalette.textMuted)
                 }
 
+                // Available Slots Quick View
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Available Slots:")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(ColorPalette.textMuted)
+
+                    HStack(spacing: 6) {
+                        ForEach(coach.availableSlots, id: \.self) { slot in
+                            Text(slot)
+                                .font(.caption2)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(ColorPalette.warmCharcoal)
+                                .foregroundStyle(ColorPalette.calmingCyan)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                        }
+                    }
+                }
+
                 AnonyButton(
-                    title: "Connect Audio Session",
+                    title: "Book 1-on-1 Audio Call",
                     systemImage: "waveform",
                     variant: .secondary,
                     size: .small
@@ -316,94 +348,98 @@ public struct DiscoverAndMatchView: View {
     }
 }
 
-// MARK: - Tab 2: Muse Voice Guide Companion View
+// MARK: - Tab 2: Muse Voice Guide (Educational Primer Only)
 public struct MuseVoiceGuideCompanionView: View {
-    @State private var isSpeaking: Bool = false
+    @State private var isPlayingTrack: Bool = false
+    @State private var selectedTrackIndex: Int = 0
 
     public init() {}
+
+    public let educationalTracks = [
+        ("What Coaching Is & Is Not", "1m 20s", "Clarify goals, unblock blind spots, and learn the boundary between coaching and clinical therapy."),
+        ("Preparing for Your First Human Session", "1m 45s", "What to bring, how to frame what you need, and getting comfortable in an audio-only space."),
+        ("Asking Impactful Questions", "2m 10s", "How to collaborate actively with your coach toward actionable personal breakthroughs.")
+    ]
 
     public var body: some View {
         ScrollView {
             VStack(spacing: 24) {
                 VStack(spacing: 8) {
-                    Text("Muse Companion")
+                    Text("Muse Voice Guide")
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundStyle(ColorPalette.textPrimary)
 
-                    Text("Your zero-pressure conversational AI voice guide for clarity and grounded breath.")
+                    Text("Educational audio guide explaining coaching principles and best practices. (Zero AI in coaching calls)")
                         .font(.subheadline)
                         .foregroundStyle(ColorPalette.textSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 20)
                 }
 
-                // Interactive Sphere
-                MuseVoiceSphereView(isSpeaking: $isSpeaking, diameter: 150)
-                    .padding(.vertical, 16)
+                // Interactive Audio Primer Player
+                MuseVoiceSphereView(isSpeaking: $isPlayingTrack, diameter: 140)
+                    .padding(.vertical, 12)
 
-                Text(isSpeaking ? "Muse is listening and reflecting..." : "Tap the sphere to begin an audio reflection")
+                Text(isPlayingTrack ? "Playing: \(educationalTracks[selectedTrackIndex].0)" : "Tap sphere to listen to educational track")
                     .font(.caption)
-                    .foregroundStyle(isSpeaking ? ColorPalette.sageGreen : ColorPalette.textMuted)
+                    .fontWeight(.medium)
+                    .foregroundStyle(isPlayingTrack ? ColorPalette.sageGreen : ColorPalette.textMuted)
 
-                // Reflection Prompts
+                // Educational Audio Modules
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Sanctuary Reflections")
+                    Text("Coaching Educational Audio Tracks")
                         .font(.headline)
                         .foregroundStyle(ColorPalette.textPrimary)
 
-                    reflectionTile(
-                        icon: "wind",
-                        title: "3-Minute Grounding Breath",
-                        subtitle: "Calm acute nervous system overwhelm before an important decision."
-                    )
+                    ForEach(educationalTracks.indices, id: \.self) { index in
+                        let track = educationalTracks[index]
+                        let isCurrent = selectedTrackIndex == index
 
-                    reflectionTile(
-                        icon: "lightbulb.fill",
-                        title: "Deconstruct Imposter Anxiety",
-                        subtitle: "Re-anchor in factual competencies without self-criticism."
-                    )
+                        Button(action: {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                selectedTrackIndex = index
+                                isPlayingTrack = true
+                            }
+                        }) {
+                            GlassCard(
+                                style: isCurrent ? .highlighted(ColorPalette.calmingCyan) : .standard,
+                                cornerRadius: 14
+                            ) {
+                                HStack(spacing: 14) {
+                                    Image(systemName: isCurrent && isPlayingTrack ? "speaker.wave.3.fill" : "play.circle.fill")
+                                        .font(.system(size: 22))
+                                        .foregroundStyle(isCurrent ? ColorPalette.calmingCyan : ColorPalette.textMuted)
 
-                    reflectionTile(
-                        icon: "compass.drawing",
-                        title: "Personal Values Compass",
-                        subtitle: "Clarify what genuinely matters for your next career move."
-                    )
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        HStack {
+                                            Text(track.0)
+                                                .font(.subheadline)
+                                                .fontWeight(.semibold)
+                                                .foregroundStyle(ColorPalette.textPrimary)
+
+                                            Spacer()
+
+                                            Text(track.1)
+                                                .font(.caption2)
+                                                .foregroundStyle(ColorPalette.calmingCyan)
+                                        }
+
+                                        Text(track.2)
+                                            .font(.caption)
+                                            .foregroundStyle(ColorPalette.textSecondary)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 .padding(.horizontal, 20)
             }
             .padding(.top, 10)
             .padding(.bottom, 24)
-        }
-    }
-
-    private func reflectionTile(icon: String, title: String, subtitle: String) -> some View {
-        GlassCard(style: .standard, cornerRadius: 14) {
-            HStack(spacing: 14) {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundStyle(ColorPalette.calmingCyan)
-                    .frame(width: 36, height: 36)
-                    .background(ColorPalette.calmingCyan.opacity(0.12))
-                    .clipShape(Circle())
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(ColorPalette.textPrimary)
-
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(ColorPalette.textSecondary)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(ColorPalette.textMuted)
-            }
         }
     }
 }
@@ -420,8 +456,8 @@ public struct MySessionsView: View {
         if let prefs = preferences {
             self.sessions = [
                 CoachingSession(
-                    coachAlias: "SanctuaryGuide",
-                    coachAvatarSeed: "SanctuaryGuide",
+                    coachAlias: prefs.selectedCoachAlias ?? "EchoClaritas",
+                    coachAvatarSeed: prefs.selectedCoachAlias ?? "EchoClaritas",
                     category: prefs.struggleCategory,
                     tier: prefs.pricingTier,
                     scheduledDate: prefs.scheduledDate,
@@ -444,7 +480,7 @@ public struct MySessionsView: View {
                         .fontWeight(.bold)
                         .foregroundStyle(ColorPalette.textPrimary)
 
-                    Text("All scheduled audio sessions in your local timezone.")
+                    Text("All scheduled 1-on-1 audio calls with your verified human coach.")
                         .font(.subheadline)
                         .foregroundStyle(ColorPalette.textSecondary)
                 }
@@ -476,7 +512,7 @@ public struct MySessionsView: View {
                     .font(.headline)
                     .foregroundStyle(ColorPalette.textPrimary)
 
-                Text("Explore the Discover tab to connect with verified anonymous coaches.")
+                Text("Explore the Discover tab to connect with verified human coaches.")
                     .font(.footnote)
                     .foregroundStyle(ColorPalette.textSecondary)
                     .multilineTextAlignment(.center)
@@ -493,11 +529,19 @@ public struct MySessionsView: View {
                     AvatarCircleView(seed: session.coachAvatarSeed, size: .medium)
 
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(session.coachAlias)
-                            .font(.headline)
-                            .foregroundStyle(ColorPalette.textPrimary)
+                        HStack(spacing: 6) {
+                            Text(session.coachAlias)
+                                .font(.headline)
+                                .foregroundStyle(ColorPalette.textPrimary)
 
-                        Text("Anonymous Audio Guide")
+                            TagPillView(
+                                text: "Verified Human Guide",
+                                systemImage: "checkmark.seal.fill",
+                                variant: .sage
+                            )
+                        }
+
+                        Text("1-on-1 Confidential Audio")
                             .font(.caption)
                             .foregroundStyle(ColorPalette.textSecondary)
                     }
@@ -540,8 +584,8 @@ public struct MySessionsView: View {
                 }
 
                 AnonyButton(
-                    title: "Enter Safe Audio Sanctuary",
-                    systemImage: "lock.shield.fill",
+                    title: "Join 1-on-1 Audio Call",
+                    systemImage: "phone.fill",
                     variant: .primary,
                     size: .medium
                 ) {

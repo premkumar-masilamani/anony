@@ -2,8 +2,8 @@ import SwiftUI
 
 public enum VisualTemplates {
 
-    // MARK: - SanctuaryView (Client Zero-Anxiety Template)
-    public struct SanctuaryView: View {
+    // MARK: - CoachingSessionView (Client Zero-Anxiety Template)
+    public struct CoachingSessionView: View {
         @State private var isConnecting = false
         @State private var sessionReady = false
         public let clientAlias: String
@@ -16,8 +16,8 @@ public enum VisualTemplates {
 
         public var body: some View {
             ZStack {
-                // Background sanctuary gradient
-                ColorPalette.sanctuaryGradient
+                // Background gradient
+                ColorPalette.backgroundGradient
                     .ignoresSafeArea()
 
                 // Ambient tranquil background aura
@@ -43,7 +43,7 @@ public enum VisualTemplates {
                             AvatarCircleView(seed: clientAlias, size: .large, showAura: true)
 
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Sanctuary Space")
+                                Text("Coaching Space")
                                     .font(.title2)
                                     .fontWeight(.bold)
                                     .foregroundColor(ColorPalette.textPrimary)
@@ -95,7 +95,7 @@ public enum VisualTemplates {
                                         .font(.title)
                                         .foregroundColor(ColorPalette.sageGreen)
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text("Private Voice Sanctuary")
+                                        Text("Private Audio Coaching")
                                             .font(.headline)
                                             .foregroundColor(ColorPalette.textPrimary)
                                         Text("Audio reflection • No video • Zero logs")
@@ -115,7 +115,7 @@ public enum VisualTemplates {
                                     .lineSpacing(4)
 
                                 AnonyButton(
-                                    title: isConnecting ? "Entering Sanctuary..." : "Enter Safe Session",
+                                    title: isConnecting ? "Connecting..." : "Enter Safe Session",
                                     systemImage: isConnecting ? nil : "sparkles",
                                     variant: .primary,
                                     size: .large,
@@ -151,7 +151,7 @@ public enum VisualTemplates {
                         }
 
                         AnonyButton(
-                            title: "Sanctuary Guidelines",
+                            title: "Coaching Guidelines",
                             systemImage: "doc.text.fill",
                             variant: .ghost,
                             size: .medium
@@ -167,6 +167,8 @@ public enum VisualTemplates {
             }
         }
     }
+
+
 
     // MARK: - DesignSystemGalleryView (Interactive Showcase)
     public struct DesignSystemGalleryView: View {

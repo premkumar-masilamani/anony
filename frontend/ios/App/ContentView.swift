@@ -21,7 +21,7 @@ struct ContentView: View {
     }
 
     var body: some View {
-        ClientSanctuaryFlowView(
+        ClientRootFlowView(
             isAuthenticated: $isAuthenticated,
             userAlias: userAlias,
             userEmail: userEmail,

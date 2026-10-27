@@ -91,6 +91,7 @@ struct StruggleCategoryAndModelTests {
         #expect(coach.specialty == .career)
         #expect(coach.tier == .paid)
         #expect(coach.rating == 4.95)
+        #expect(!coach.availableSlots.isEmpty)
 
         let encoded = try JSONEncoder().encode(coach)
         let decoded = try JSONDecoder().decode(Coach.self, from: encoded)

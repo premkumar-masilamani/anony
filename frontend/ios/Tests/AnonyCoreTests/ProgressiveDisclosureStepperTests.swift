@@ -57,36 +57,52 @@ struct ProgressiveDisclosureStepperTests {
         #expect(didAdvance == true)
     }
 
-    @Test("ScheduleSessionStepView resolves timezone and slots")
+    @Test("ScheduleSessionStepView resolves timezone, dual modes, and slots")
     @MainActor
     func testScheduleSessionStepView() {
         let category: StruggleCategory = .career
         let tier: PricingTier = .paid
         var confirmedPrefs: OnboardingPreferences? = nil
 
-        let stepView = ScheduleSessionStepView(
+        let stepViewByCoach = ScheduleSessionStepView(
             selectedCategory: category,
             selectedTier: tier,
+            initialMode: .byCoach,
             onConfirm: { prefs in
                 confirmedPrefs = prefs
             }
         )
 
-        #expect(stepView.selectedCategory == .career)
-        #expect(stepView.selectedTier == .paid)
-        #expect(!stepView.availableTimeSlots.isEmpty)
-        #expect(!stepView.localTimeZoneName.isEmpty)
+        #expect(stepViewByCoach.selectedCategory == .career)
+        #expect(stepViewByCoach.selectedTier == .paid)
+        #expect(!stepViewByCoach.availableTimeSlots.isEmpty)
+        #expect(!stepViewByCoach.localTimeZoneName.isEmpty)
+        #expect(stepViewByCoach.scheduleMode == .byCoach)
+        #expect(stepViewByCoach.selectedCoach != nil)
+
+        // Verify byTime mode
+        let stepViewByTime = ScheduleSessionStepView(
+            selectedCategory: category,
+            selectedTier: tier,
+            initialMode: .byTime,
+            onConfirm: { prefs in
+                confirmedPrefs = prefs
+            }
+        )
+        #expect(stepViewByTime.scheduleMode == .byTime)
 
         let testPrefs = OnboardingPreferences(
             struggleCategory: category,
             pricingTier: tier,
             scheduledDate: Date(),
-            timeSlot: "10:00 AM",
-            timeZoneIdentifier: TimeZone.current.identifier
+            timeSlot: "2:30 PM",
+            timeZoneIdentifier: TimeZone.current.identifier,
+            selectedCoachAlias: "EchoClaritas"
         )
-        stepView.onConfirm(testPrefs)
+        stepViewByCoach.onConfirm(testPrefs)
         #expect(confirmedPrefs?.struggleCategory == .career)
         #expect(confirmedPrefs?.pricingTier == .paid)
+        #expect(confirmedPrefs?.selectedCoachAlias == "EchoClaritas")
     }
 
     @Test("ProgressiveDisclosureStepperView navigates through 3 steps and completes")

@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// Determines which high-level screen is displayed in the Client Sanctuary flow:
+/// Determines which high-level screen is displayed in the Client application flow:
 /// 1. Registration (if unauthenticated)
 /// 2. First-Launch 3-Step Guided Stepper (if first-time user)
 /// 3. 3-Tab Main Shell (if returning user or post-stepper)
-public struct ClientSanctuaryFlowView: View {
+public struct ClientRootFlowView: View {
     @Binding public var isAuthenticated: Bool
     public let userAlias: String?
     public let userEmail: String?
@@ -92,3 +92,5 @@ public struct ClientSanctuaryFlowView: View {
         .animation(.spring(response: 0.45, dampingFraction: 0.85), value: currentFlowState)
     }
 }
+
+

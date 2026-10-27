@@ -31,7 +31,7 @@ make dev
 - When querying `kSecClassGenericPassword`, always supply both `kSecAttrService` and `kSecAttrAccount` to guarantee account isolation and prevent cross-item query ambiguity in multi-attribute Keychain sessions.
 - Annotate Swift Testing suites (`@Suite`) interacting with Keychain or shared singletons with `.serialized` to prevent parallel execution race conditions.
 - Enforce password boundary rules with simple count checks (`password.count > 8 && password.count <= 32`) without adding extraneous complexity rules unless explicitly specified.
-- Extract high-level navigation and routing state machines (e.g. flow views like `ClientSanctuaryFlowView`) into the `AnonyCore` library rather than keeping them private inside executable entry points (`ContentView`) to ensure full Swift Testing coverage.
+- Extract high-level navigation and routing state machines (e.g. flow views like `ClientRootFlowView`) into the `AnonyCore` library rather than keeping them private inside executable entry points (`ContentView`) to ensure full Swift Testing coverage.
 
 ### Ask first
 - Introducing third-party Swift Package dependencies beyond `livekit-client-swift`.

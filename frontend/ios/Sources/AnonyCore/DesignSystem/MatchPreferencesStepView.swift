@@ -26,7 +26,7 @@ public struct MatchPreferencesStepView: View {
             VStack(alignment: .leading, spacing: 24) {
                 // Header
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("What brings you to Sanctuary?")
+                    Text("What brings you to Anony?")
                         .font(.title2)
                         .fontWeight(.semibold)
                         .foregroundStyle(ColorPalette.textPrimary)

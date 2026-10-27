@@ -5,10 +5,10 @@ import SwiftUI
 @Suite("VisualTemplatesTests")
 struct VisualTemplatesTests {
 
-    @Test("SanctuaryView template instantiates cleanly")
-    func sanctuaryViewInstantiation() {
-        let view = VisualTemplates.SanctuaryView()
-        #expect(String(describing: type(of: view)) == "SanctuaryView")
+    @Test("CoachingSessionView template instantiates cleanly")
+    func coachingSessionViewInstantiation() {
+        let view = VisualTemplates.CoachingSessionView()
+        #expect(String(describing: type(of: view)) == "CoachingSessionView")
     }
 
     @Test("DesignSystemGalleryView template instantiates cleanly")

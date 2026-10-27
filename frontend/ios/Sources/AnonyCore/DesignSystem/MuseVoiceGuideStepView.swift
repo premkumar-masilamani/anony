@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Step 1 of the guided progressive disclosure stepper.
-/// Introduces the client to coaching, sets safety expectations, and previews app navigation.
+/// Voice-guided educational primer explaining what coaching is, what coaching is not,
+/// and setting clear boundaries that all sessions are 1-on-1 with verified human coaches.
 public struct MuseVoiceGuideStepView: View {
     public let onContinue: () -> Void
     @State private var isSpeaking: Bool = false
@@ -12,53 +13,99 @@ public struct MuseVoiceGuideStepView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(spacing: 28) {
-                // Interactive Voice Companion Sphere
-                VStack(spacing: 14) {
-                    MuseVoiceSphereView(isSpeaking: $isSpeaking, diameter: 130)
-                        .padding(.top, 10)
+            VStack(spacing: 24) {
+                // Interactive Educational Voice Sphere
+                VStack(spacing: 12) {
+                    MuseVoiceSphereView(isSpeaking: $isSpeaking, diameter: 120)
+                        .padding(.top, 8)
 
-                    Text(isSpeaking ? "Muse is guiding..." : "Tap sphere to listen to Muse")
+                    Text(isSpeaking ? "Playing: What Coaching Is & Is Not (1m 20s)" : "Tap sphere to listen to Muse Guide")
                         .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundStyle(isSpeaking ? ColorPalette.sageGreen : ColorPalette.textMuted)
+
+                    Text("Educational audio walkthrough • Zero AI in coaching calls")
+                        .font(.caption2)
                         .foregroundStyle(ColorPalette.textMuted)
                 }
 
                 // Header & Introduction
                 VStack(spacing: 8) {
-                    Text("Welcome to Sanctuary")
+                    Text("Understanding Coaching")
                         .font(.title2)
-                        .fontWeight(.semibold)
+                        .fontWeight(.bold)
                         .foregroundStyle(ColorPalette.textPrimary)
 
-                    Text("Your private, judgment-free space for growth, perspective, and healing.")
+                    Text("Anony connects you with verified human coaches for confidential 1-on-1 audio calls. Zero video, zero PII.")
                         .font(.subheadline)
                         .foregroundStyle(ColorPalette.textSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 16)
                 }
 
-                // 3 Core Sanctuary Pillars
+                // Educational Sections: What Coaching IS vs. What It IS NOT
                 VStack(spacing: 14) {
-                    pillarCard(
-                        icon: "bubble.left.and.bubble.right.fill",
-                        iconColor: ColorPalette.calmingCyan,
-                        title: "What is Coaching?",
-                        description: "A forward-looking, goal-oriented partnership focused on discovering clarity, unblocking hurdles, and personal resilience."
-                    )
+                    // What Coaching IS
+                    GlassCard(style: .highlighted(ColorPalette.sageGreen), cornerRadius: 16) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(ColorPalette.sageGreen)
+                                    .font(.headline)
 
-                    pillarCard(
-                        icon: "lock.shield.fill",
-                        iconColor: ColorPalette.sageGreen,
-                        title: "Zero Video, 100% Anonymous",
-                        description: "All conversations are encrypted and audio-only. No faces, no legal names, no pressure. You are completely safe here."
-                    )
+                                Text("WHAT COACHING IS")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(ColorPalette.sageGreen)
+                            }
 
-                    pillarCard(
-                        icon: "square.grid.2x2.fill",
-                        iconColor: ColorPalette.mutedLavender,
-                        title: "Intuitive App Navigation",
-                        description: "Seamlessly explore verified coaches in Discover & Match, revisit Muse for reflections, and manage bookings in My Sessions."
-                    )
+                            VStack(alignment: .leading, spacing: 6) {
+                                bulletPoint(
+                                    bold: "Forward-Looking Partnership: ",
+                                    detail: "Focused on clarity, personal resilience, and unlocking future potential."
+                                )
+                                bulletPoint(
+                                    bold: "1-on-1 Real Human Voice: ",
+                                    detail: "Confidential, encrypted audio sessions with experienced human coaches."
+                                )
+                                bulletPoint(
+                                    bold: "Empowerment & Action: ",
+                                    detail: "Unblocking hurdles, accountability, and practical goal-setting."
+                                )
+                            }
+                        }
+                    }
+
+                    // What Coaching IS NOT
+                    GlassCard(style: .highlighted(ColorPalette.mutedLavender), cornerRadius: 16) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(ColorPalette.mutedLavender)
+                                    .font(.headline)
+
+                                Text("WHAT COACHING IS NOT")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(ColorPalette.mutedLavender)
+                            }
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                bulletPoint(
+                                    bold: "Not Therapy or Psychiatry: ",
+                                    detail: "We do not treat clinical psychological illness, trauma, or prescribe medications."
+                                )
+                                bulletPoint(
+                                    bold: "Not AI Chat Conversations: ",
+                                    detail: "You never speak with bots during your coaching sessions. All calls are human-to-human."
+                                )
+                                bulletPoint(
+                                    bold: "Not Passive Listening: ",
+                                    detail: "It is an active, collaborative dialog toward tangible personal growth."
+                                )
+                            }
+                        }
+                    }
                 }
 
                 // Primary CTA
@@ -76,37 +123,20 @@ public struct MuseVoiceGuideStepView: View {
         }
     }
 
-    private func pillarCard(
-        icon: String,
-        iconColor: Color,
-        title: String,
-        description: String
-    ) -> some View {
-        GlassCard(style: .standard, cornerRadius: 16) {
-            HStack(alignment: .top, spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(iconColor.opacity(0.15))
-                        .frame(width: 40, height: 40)
-
-                    Image(systemName: icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(iconColor)
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.headline)
-                        .foregroundStyle(ColorPalette.textPrimary)
-
-                    Text(description)
-                        .font(.footnote)
-                        .foregroundStyle(ColorPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 0)
-            }
+    private func bulletPoint(bold: String, detail: String) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Text("•")
+                .foregroundStyle(ColorPalette.textMuted)
+                .font(.footnote)
+            (
+                Text(bold)
+                    .fontWeight(.semibold)
+                    .foregroundColor(ColorPalette.textPrimary)
+                + Text(detail)
+                    .foregroundColor(ColorPalette.textSecondary)
+            )
+            .font(.footnote)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

@@ -63,12 +63,12 @@ struct MainShellViewTests {
         #expect(view.sessions.first?.timeSlot == "2:30 PM")
     }
 
-    @Test("ClientSanctuaryFlowView routes first-time users to stepper and returning users to main shell")
+    @Test("ClientRootFlowView routes first-time users to stepper and returning users to main shell")
     @MainActor
-    func testClientSanctuaryFlowRouting() {
+    func testClientRootFlowRouting() {
         var isAuth = false
         let unauthService = MockOnboardingService(completed: false)
-        let unauthFlow = ClientSanctuaryFlowView(
+        let unauthFlow = ClientRootFlowView(
             isAuthenticated: Binding(get: { isAuth }, set: { isAuth = $0 }),
             onboardingService: unauthService,
             onSessionAuthenticated: { _ in },
@@ -79,7 +79,7 @@ struct MainShellViewTests {
         // Authenticated first-time user:
         isAuth = true
         let firstTimeService = MockOnboardingService(completed: false)
-        let firstTimeFlow = ClientSanctuaryFlowView(
+        let firstTimeFlow = ClientRootFlowView(
             isAuthenticated: Binding(get: { isAuth }, set: { isAuth = $0 }),
             onboardingService: firstTimeService,
             onSessionAuthenticated: { _ in },
@@ -89,7 +89,7 @@ struct MainShellViewTests {
 
         // Authenticated returning user:
         let returningService = MockOnboardingService(completed: true)
-        let returningFlow = ClientSanctuaryFlowView(
+        let returningFlow = ClientRootFlowView(
             isAuthenticated: Binding(get: { isAuth }, set: { isAuth = $0 }),
             onboardingService: returningService,
             onSessionAuthenticated: { _ in },

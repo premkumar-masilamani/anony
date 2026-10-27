@@ -22,8 +22,8 @@ public struct ProgressiveDisclosureStepperView: View {
 
     public var body: some View {
         ZStack {
-            // Sanctuary background
-            ColorPalette.sanctuaryGradient
+            // Background gradient
+            ColorPalette.backgroundGradient
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
