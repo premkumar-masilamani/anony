@@ -47,6 +47,10 @@ public enum APIEndpoints {
         "/api/v1/sessions/\(id.uuidString)"
     }
 
+    // MARK: - Clients & Profile
+    public static let clientProfile = "/api/v1/clients/me/profile"
+    public static let clientPrivacyMode = "/api/v1/clients/me/privacy-mode"
+
     // MARK: - URL Resolution Helper
     /// Resolves the absolute URL using the provided base URL or active APIConfig.currentBaseURL.
     public static func url(for endpointPath: String, baseURL: URL = APIConfig.currentBaseURL) -> URL {

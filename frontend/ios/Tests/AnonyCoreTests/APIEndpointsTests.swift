@@ -25,6 +25,8 @@ struct APIEndpointsTests {
         #expect(APIEndpoints.favorites == "/api/v1/coaches/favorites")
         #expect(APIEndpoints.blindMatch == "/api/v1/match/blind")
         #expect(APIEndpoints.bookings == "/api/v1/bookings")
+        #expect(APIEndpoints.clientProfile == "/api/v1/clients/me/profile")
+        #expect(APIEndpoints.clientPrivacyMode == "/api/v1/clients/me/privacy-mode")
 
         let testId = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
         #expect(APIEndpoints.coachDetails(id: testId) == "/api/v1/coaches/11111111-2222-3333-4444-555555555555")
