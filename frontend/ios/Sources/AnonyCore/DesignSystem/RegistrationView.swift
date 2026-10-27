@@ -18,7 +18,7 @@ public struct RegistrationView: View {
     private let onSuccess: (AuthSession) -> Void
 
     public init(
-        authService: AuthServiceProtocol = MockAuthService(),
+        authService: AuthServiceProtocol = RemoteAuthService(),
         initialMode: AuthMode = .signIn,
         onSuccess: @escaping (AuthSession) -> Void
     ) {

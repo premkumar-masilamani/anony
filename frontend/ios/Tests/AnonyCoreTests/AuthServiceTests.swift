@@ -2,12 +2,13 @@ import Testing
 import Foundation
 @testable import AnonyCore
 
-@Suite("AuthServiceTests")
+@Suite("AuthServiceTests", .serialized)
 struct AuthServiceTests {
+    private let isolatedIdentityService = IdentityService(serviceIdentifier: "com.anony.mobile.test.mockauth")
 
     @Test("Registration succeeds with valid email and password")
     func testSuccessfulRegistration() async throws {
-        let authService = MockAuthService()
+        let authService = MockAuthService(identityService: isolatedIdentityService)
         let email = "tranquil.user@anony.app"
         let password = "validPassword123"
 
@@ -61,7 +62,7 @@ struct AuthServiceTests {
 
     @Test("Login succeeds with valid credentials and persists session")
     func testSuccessfulLogin() async throws {
-        let authService = MockAuthService()
+        let authService = MockAuthService(identityService: isolatedIdentityService)
         let email = "maya.raman@example.com"
         let password = "validPassword123"
 
@@ -70,12 +71,12 @@ struct AuthServiceTests {
         #expect(!session.token.isEmpty)
         #expect(!session.alias.isEmpty)
         #expect(session.email == email)
-        #expect(IdentityService.shared.hasActiveSession())
+        #expect(isolatedIdentityService.hasActiveSession())
     }
 
     @Test("Login fails with short or long password")
     func testLoginPasswordBoundaries() async {
-        let authService = MockAuthService()
+        let authService = MockAuthService(identityService: isolatedIdentityService)
         let email = "user@example.com"
 
         await #expect(throws: AuthError.passwordTooShort) {
@@ -89,7 +90,7 @@ struct AuthServiceTests {
 
     @Test("Login fails with invalid email format")
     func testLoginInvalidEmail() async {
-        let authService = MockAuthService()
+        let authService = MockAuthService(identityService: isolatedIdentityService)
 
         await #expect(throws: AuthError.invalidEmail) {
             _ = try await authService.login(email: "invalid-email", password: "validPassword123")
@@ -98,7 +99,7 @@ struct AuthServiceTests {
 
     @Test("Login fails with invalid credentials")
     func testLoginInvalidCredentials() async {
-        let authService = MockAuthService()
+        let authService = MockAuthService(identityService: isolatedIdentityService)
 
         await #expect(throws: AuthError.invalidCredentials) {
             _ = try await authService.login(email: "maya.raman@example.com", password: "WrongPassword#2026")
@@ -107,11 +108,11 @@ struct AuthServiceTests {
 
     @Test("Logout clears active session from Keychain")
     func testSuccessfulLogout() async throws {
-        let authService = MockAuthService()
+        let authService = MockAuthService(identityService: isolatedIdentityService)
         _ = try await authService.login(email: "user@example.com", password: "validPassword123")
-        #expect(IdentityService.shared.hasActiveSession())
+        #expect(isolatedIdentityService.hasActiveSession())
 
         try await authService.logout()
-        #expect(!IdentityService.shared.hasActiveSession())
+        #expect(!isolatedIdentityService.hasActiveSession())
     }
 }

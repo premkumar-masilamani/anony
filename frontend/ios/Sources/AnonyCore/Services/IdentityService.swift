@@ -4,12 +4,17 @@ import Security
 public final class IdentityService: Sendable {
     public static let shared = IdentityService()
 
-    private let serviceIdentifier = "com.anony.mobile"
-    private let tokenServiceKey = "com.anony.mobile.sessionToken"
-    private let aliasServiceKey = "com.anony.mobile.userAlias"
-    private let emailServiceKey = "com.anony.mobile.userEmail"
+    private let serviceIdentifier: String
+    private let tokenServiceKey: String
+    private let aliasServiceKey: String
+    private let emailServiceKey: String
 
-    public init() {}
+    public init(serviceIdentifier: String = "com.anony.mobile") {
+        self.serviceIdentifier = serviceIdentifier
+        self.tokenServiceKey = "\(serviceIdentifier).sessionToken"
+        self.aliasServiceKey = "\(serviceIdentifier).userAlias"
+        self.emailServiceKey = "\(serviceIdentifier).userEmail"
+    }
 
     // MARK: - Generic Keychain Helpers
 

@@ -13,7 +13,7 @@ struct ContentView: View {
     public init(
         onboardingService: OnboardingServiceProtocol = UserDefaultsOnboardingService.shared,
         identityService: IdentityService = .shared,
-        authService: AuthServiceProtocol = MockAuthService()
+        authService: AuthServiceProtocol = RemoteAuthService()
     ) {
         self.onboardingService = onboardingService
         self.identityService = identityService
@@ -29,6 +29,7 @@ struct ContentView: View {
             userAlias: userAlias,
             userEmail: userEmail,
             onboardingService: onboardingService,
+            authService: authService,
             onSessionAuthenticated: { session in
                 userEmail = session.email
                 userAlias = session.alias
