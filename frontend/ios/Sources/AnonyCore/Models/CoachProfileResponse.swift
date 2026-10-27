@@ -8,6 +8,9 @@ public struct CoachProfileResponse: Codable, Sendable, Identifiable, Equatable {
     public let email: String
     public let firstName: String
     public let lastName: String
+    public let photoUrl: String?
+    public let gender: String?
+    public let countryCode: String?
     public let timezone: String
     public let biography: String?
     public let icfLevel: String
@@ -16,6 +19,7 @@ public struct CoachProfileResponse: Codable, Sendable, Identifiable, Equatable {
     public let icfMcc: Bool
     public let icfActc: Bool
     public let credentialDetails: String?
+    public let hourlyRate: Double?
     public let isVerified: Bool
     public let isOnboarded: Bool
     public let domainCodes: [String]
@@ -27,6 +31,9 @@ public struct CoachProfileResponse: Codable, Sendable, Identifiable, Equatable {
         email: String,
         firstName: String,
         lastName: String,
+        photoUrl: String? = nil,
+        gender: String? = nil,
+        countryCode: String? = nil,
         timezone: String,
         biography: String? = nil,
         icfLevel: String,
@@ -35,6 +42,7 @@ public struct CoachProfileResponse: Codable, Sendable, Identifiable, Equatable {
         icfMcc: Bool,
         icfActc: Bool,
         credentialDetails: String? = nil,
+        hourlyRate: Double? = nil,
         isVerified: Bool,
         isOnboarded: Bool,
         domainCodes: [String] = [],
@@ -45,6 +53,9 @@ public struct CoachProfileResponse: Codable, Sendable, Identifiable, Equatable {
         self.email = email
         self.firstName = firstName
         self.lastName = lastName
+        self.photoUrl = photoUrl
+        self.gender = gender
+        self.countryCode = countryCode
         self.timezone = timezone
         self.biography = biography
         self.icfLevel = icfLevel
@@ -53,6 +64,7 @@ public struct CoachProfileResponse: Codable, Sendable, Identifiable, Equatable {
         self.icfMcc = icfMcc
         self.icfActc = icfActc
         self.credentialDetails = credentialDetails
+        self.hourlyRate = hourlyRate
         self.isVerified = isVerified
         self.isOnboarded = isOnboarded
         self.domainCodes = domainCodes

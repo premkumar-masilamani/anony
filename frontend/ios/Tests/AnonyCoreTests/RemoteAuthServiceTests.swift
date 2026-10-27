@@ -489,4 +489,83 @@ struct RemoteAuthServiceTests {
         #expect(profile.alias == "Courageous Owl")
         #expect(profile.isAnonymous == true)
     }
+
+    @Test("Remote update coach profile sends PUT /api/v1/coaches/me and returns updated profile")
+    func testRemoteUpdateCoachProfileSuccess() async throws {
+        let testSession = makeTestSession()
+        let testBaseURL = URL(string: "http://127.0.0.1:8080")!
+        let identityService = isolatedIdentityService
+        _ = identityService.clearSession()
+        _ = identityService.saveToken("valid_coach_token")
+
+        let authService = RemoteAuthService(
+            baseURL: testBaseURL,
+            session: testSession,
+            identityService: identityService
+        )
+
+        MockURLProtocol.requestHandler = { request in
+            #expect(request.url?.path == "/api/v1/coaches/me")
+            #expect(request.httpMethod == "PUT")
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer valid_coach_token")
+            #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
+
+            let profileJSON = """
+            {
+                "coachId": "20000000-0000-4000-8000-000000000001",
+                "userId": "10000000-0000-4000-8000-000000000001",
+                "email": "maya.raman@example.com",
+                "firstName": "UpdatedMaya",
+                "lastName": "UpdatedRaman",
+                "photoUrl": "https://example.com/photo.jpg",
+                "gender": "FEMALE",
+                "countryCode": "IN",
+                "timezone": "Asia/Kolkata",
+                "biography": "Updated leadership bio",
+                "icfLevel": "MCC",
+                "icfAcc": true,
+                "icfPcc": true,
+                "icfMcc": true,
+                "icfActc": false,
+                "credentialDetails": "ICF-MCC-1029",
+                "hourlyRate": 250.0,
+                "isVerified": false,
+                "isOnboarded": true,
+                "domainCodes": ["CAREER", "LEADERSHIP"],
+                "createdAt": "2026-10-27T10:00:00Z"
+            }
+            """
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            return (response, profileJSON.data(using: .utf8)!)
+        }
+
+        let payload = CoachUpdatePayload(
+            firstName: "UpdatedMaya",
+            lastName: "UpdatedRaman",
+            photoUrl: "https://example.com/photo.jpg",
+            gender: "FEMALE",
+            countryCode: "IN",
+            timezone: "Asia/Kolkata",
+            biography: "Updated leadership bio",
+            icfLevel: "MCC",
+            icfAcc: true,
+            icfPcc: true,
+            icfMcc: true,
+            icfActc: false,
+            credentialDetails: "ICF-MCC-1029",
+            domainCodes: ["CAREER", "LEADERSHIP"],
+            hourlyRate: 250.0
+        )
+
+        let updated = try await authService.updateCoachProfile(payload: payload)
+        #expect(updated.firstName == "UpdatedMaya")
+        #expect(updated.lastName == "UpdatedRaman")
+        #expect(updated.icfMcc == true)
+        #expect(updated.hourlyRate == 250.0)
+    }
 }

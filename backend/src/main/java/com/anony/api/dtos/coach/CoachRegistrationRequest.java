@@ -14,11 +14,18 @@ import java.util.List;
  * @param password account password
  * @param firstName coach first name
  * @param lastName coach last name
- * @param icfLevel ICF credential level (ACC, PCC, MCC, ACTC)
- * @param credentialDetails credential identifier or details
- * @param domainCodes coaching domain codes
+ * @param photoUrl coach photo URL
+ * @param gender coach self-declared gender
+ * @param countryCode coach 2-letter ISO country code
  * @param timezone coach timezone identifier
  * @param biography coach biography
+ * @param icfLevel primary ICF credential level (ACC, PCC, MCC, ACTC)
+ * @param icfAcc whether coach possesses ACC credential
+ * @param icfPcc whether coach possesses PCC credential
+ * @param icfMcc whether coach possesses MCC credential
+ * @param icfActc whether coach possesses ACTC credential
+ * @param credentialDetails credential identifier or details
+ * @param domainCodes coaching domain codes
  * @param hourlyRate optional hourly rate
  */
 public record CoachRegistrationRequest(
@@ -29,9 +36,16 @@ public record CoachRegistrationRequest(
         String password,
     @NotBlank(message = "First name is required") String firstName,
     @NotBlank(message = "Last name is required") String lastName,
-    @NotBlank(message = "ICF level is required") String icfLevel,
-    String credentialDetails,
-    @NotEmpty(message = "At least one domain tag must be provided") List<String> domainCodes,
+    String photoUrl,
+    String gender,
+    String countryCode,
     String timezone,
     String biography,
+    String icfLevel,
+    Boolean icfAcc,
+    Boolean icfPcc,
+    Boolean icfMcc,
+    Boolean icfActc,
+    String credentialDetails,
+    @NotEmpty(message = "At least one domain tag must be provided") List<String> domainCodes,
     BigDecimal hourlyRate) {}

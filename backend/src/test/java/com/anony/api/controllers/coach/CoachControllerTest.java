@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -14,8 +15,10 @@ import com.anony.domain.auth.AuthenticationResult;
 import com.anony.domain.coach.CoachProfileDetails;
 import com.anony.domain.coach.CoachRegistrationCommand;
 import com.anony.domain.coach.CoachService;
+import com.anony.domain.coach.CoachUpdateCommand;
 import com.anony.domain.security.AuthenticatedUser;
 import com.anony.persistence.enums.UserRole;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -284,5 +287,119 @@ class CoachControllerTest {
                 .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.error").value("Coach profile not found."));
+  }
+
+  @Test
+  @DisplayName("PUT /api/v1/coaches/me should update coach profile and return 200 OK")
+  void testUpdateProfileSuccess() throws Exception {
+    UUID userId = UUID.randomUUID();
+    UUID coachId = UUID.randomUUID();
+    AuthenticatedUser principal =
+        new AuthenticatedUser(userId, "coach@example.com", UserRole.COACH, UUID.randomUUID());
+
+    UsernamePasswordAuthenticationToken authentication =
+        new UsernamePasswordAuthenticationToken(principal, null, List.of());
+    SecurityContextHolder.getContext().setAuthentication(authentication);
+
+    CoachProfileDetails updatedDetails =
+        new CoachProfileDetails(
+            coachId,
+            userId,
+            "coach@example.com",
+            "UpdatedMaya",
+            "UpdatedRaman",
+            "https://photo.example.com",
+            "FEMALE",
+            "IN",
+            "Asia/Kolkata",
+            "Updated career coach bio",
+            "MCC",
+            false,
+            false,
+            true,
+            false,
+            "Updated credentials",
+            new BigDecimal("220.00"),
+            false,
+            true,
+            List.of("LEADERSHIP"),
+            Instant.now());
+
+    when(coachService.updateCoachProfile(eq(userId), any(CoachUpdateCommand.class)))
+        .thenReturn(updatedDetails);
+
+    String payload =
+        """
+        {
+          "firstName": "UpdatedMaya",
+          "lastName": "UpdatedRaman",
+          "timezone": "Asia/Kolkata",
+          "biography": "Updated career coach bio",
+          "icfMcc": true,
+          "credentialDetails": "Updated credentials",
+          "domainCodes": ["LEADERSHIP"],
+          "hourlyRate": 220.00
+        }
+        """;
+
+    mockMvc
+        .perform(
+            put("/api/v1/coaches/me")
+                .principal(authentication)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.firstName").value("UpdatedMaya"))
+        .andExpect(jsonPath("$.lastName").value("UpdatedRaman"))
+        .andExpect(jsonPath("$.icfMcc").value(true));
+  }
+
+  @Test
+  @DisplayName("PUT /api/v1/coaches/me should return 403 Forbidden for non-coach role")
+  void testUpdateProfileForbiddenForClient() throws Exception {
+    UUID userId = UUID.randomUUID();
+    AuthenticatedUser principal =
+        new AuthenticatedUser(userId, "client@example.com", UserRole.CLIENT, UUID.randomUUID());
+
+    UsernamePasswordAuthenticationToken authentication =
+        new UsernamePasswordAuthenticationToken(principal, null, List.of());
+    SecurityContextHolder.getContext().setAuthentication(authentication);
+
+    String payload =
+        """
+        {
+          "firstName": "Updated",
+          "lastName": "Client",
+          "timezone": "UTC"
+        }
+        """;
+
+    mockMvc
+        .perform(
+            put("/api/v1/coaches/me")
+                .principal(authentication)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @DisplayName("PUT /api/v1/coaches/me should return 401 Unauthorized when unauthenticated")
+  void testUpdateProfileUnauthenticated() throws Exception {
+    String payload =
+        """
+        {
+          "firstName": "Updated",
+          "lastName": "Name",
+          "timezone": "UTC"
+        }
+        """;
+
+    mockMvc
+        .perform(
+            put("/api/v1/coaches/me")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+        .andExpect(status().isUnauthorized());
   }
 }

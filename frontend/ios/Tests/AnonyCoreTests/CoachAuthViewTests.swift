@@ -6,14 +6,21 @@ import SwiftUI
 @Suite("CoachAuthViewTests")
 struct CoachAuthViewTests {
 
-    @Test("CoachRegistrationPayload conforms to Codable and Equatable")
+    @Test("CoachRegistrationPayload conforms to Codable and Equatable with extended coach fields")
     func testCoachRegistrationPayload() throws {
         let payload = CoachRegistrationPayload(
             email: "coach@example.com",
             password: "SecurePassword#123",
             firstName: "Jane",
             lastName: "Doe",
+            photoUrl: "https://example.com/photo.jpg",
+            gender: "FEMALE",
+            countryCode: "US",
             icfLevel: "PCC",
+            icfAcc: false,
+            icfPcc: true,
+            icfMcc: false,
+            icfActc: false,
             credentialDetails: "ICF-PCC-1029",
             domainCodes: ["CAREER", "BURNOUT"],
             timezone: "America/New_York",
@@ -29,12 +36,49 @@ struct CoachAuthViewTests {
 
         #expect(decoded.email == "coach@example.com")
         #expect(decoded.firstName == "Jane")
+        #expect(decoded.photoUrl == "https://example.com/photo.jpg")
+        #expect(decoded.gender == "FEMALE")
+        #expect(decoded.countryCode == "US")
         #expect(decoded.icfLevel == "PCC")
+        #expect(decoded.icfPcc == true)
         #expect(decoded.domainCodes == ["CAREER", "BURNOUT"])
         #expect(decoded.hourlyRate == 175.0)
     }
 
-    @Test("CoachProfileResponse conforms to Codable and Identifiable")
+    @Test("CoachUpdatePayload conforms to Codable and Equatable")
+    func testCoachUpdatePayload() throws {
+        let payload = CoachUpdatePayload(
+            firstName: "Maya",
+            lastName: "Raman",
+            photoUrl: "https://example.com/maya.jpg",
+            gender: "FEMALE",
+            countryCode: "IN",
+            timezone: "Asia/Kolkata",
+            biography: "Leadership mentor.",
+            icfLevel: "MCC",
+            icfAcc: true,
+            icfPcc: true,
+            icfMcc: true,
+            icfActc: false,
+            credentialDetails: "Certificates verified",
+            domainCodes: ["LEADERSHIP"],
+            hourlyRate: 220.0
+        )
+
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(payload)
+
+        let decoder = JSONDecoder()
+        let decoded = try decoder.decode(CoachUpdatePayload.self, from: data)
+
+        #expect(decoded.firstName == "Maya")
+        #expect(decoded.lastName == "Raman")
+        #expect(decoded.icfMcc == true)
+        #expect(decoded.countryCode == "IN")
+        #expect(decoded.hourlyRate == 220.0)
+    }
+
+    @Test("CoachProfileResponse conforms to Codable and Identifiable with extended fields")
     func testCoachProfileResponse() throws {
         let coachId = UUID()
         let userId = UUID()
@@ -44,6 +88,9 @@ struct CoachAuthViewTests {
             email: "maya.raman@example.com",
             firstName: "Maya",
             lastName: "Raman",
+            photoUrl: "https://example.com/maya.jpg",
+            gender: "FEMALE",
+            countryCode: "IN",
             timezone: "Asia/Kolkata",
             biography: "Bio",
             icfLevel: "PCC",
@@ -52,6 +99,7 @@ struct CoachAuthViewTests {
             icfMcc: false,
             icfActc: false,
             credentialDetails: "ICF-PCC-1029",
+            hourlyRate: 180.0,
             isVerified: false,
             isOnboarded: false,
             domainCodes: ["CAREER"]
@@ -60,6 +108,10 @@ struct CoachAuthViewTests {
         #expect(profile.id == coachId)
         #expect(profile.isVerified == false)
         #expect(profile.icfLevel == "PCC")
+        #expect(profile.photoUrl == "https://example.com/maya.jpg")
+        #expect(profile.gender == "FEMALE")
+        #expect(profile.countryCode == "IN")
+        #expect(profile.hourlyRate == 180.0)
     }
 
     @Test("ClientProfileResponse conforms to Codable and Identifiable")
@@ -102,6 +154,28 @@ struct CoachAuthViewTests {
         )
 
         #expect(view.coachEmail == "coach@example.com")
+    }
+
+    @Test("CoachProfileEditView instantiates cleanly")
+    func testCoachProfileEditViewInstantiation() {
+        let profile = CoachProfileResponse(
+            coachId: UUID(),
+            userId: UUID(),
+            email: "coach@example.com",
+            firstName: "Jane",
+            lastName: "Doe",
+            timezone: "UTC",
+            icfLevel: "ACC",
+            icfAcc: true,
+            icfPcc: false,
+            icfMcc: false,
+            icfActc: false,
+            isVerified: false,
+            isOnboarded: false
+        )
+        let view = CoachProfileEditView(profile: profile, onSaved: { _ in })
+        let mirror = Mirror(reflecting: view)
+        #expect(!mirror.children.isEmpty)
     }
 
     @Test("CoachDashboardView instantiates cleanly")

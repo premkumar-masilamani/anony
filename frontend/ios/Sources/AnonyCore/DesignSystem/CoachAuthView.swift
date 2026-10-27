@@ -6,11 +6,22 @@ public struct CoachAuthView: View {
     @State private var password: String = ""
     @State private var firstName: String = ""
     @State private var lastName: String = ""
-    @State private var icfLevel: String = "ACC"
-    @State private var credentialId: String = ""
+    @State private var photoUrl: String = ""
+    @State private var countryCode: String = "US"
+    @State private var timezone: String = TimeZone.current.identifier
+    @State private var gender: String = ""
+
+    // ICF Credential Checkboxes (can select multiple)
+    @State private var icfAcc: Bool = true
+    @State private var icfPcc: Bool = false
+    @State private var icfMcc: Bool = false
+    @State private var icfActc: Bool = false
+
+    @State private var credentialDetails: String = ""
+    @State private var biography: String = ""
     @State private var hourlyRateText: String = "150"
     @State private var selectedDomains: Set<String> = ["CAREER", "LEADERSHIP"]
-    @State private var biography: String = ""
+
     @State private var isLoading: Bool = false
     @State private var errorMessage: String? = nil
 
@@ -39,6 +50,10 @@ public struct CoachAuthView: View {
         self.onSuccess = onSuccess
     }
 
+    private var hasAtLeastOneCertification: Bool {
+        icfAcc || icfPcc || icfMcc || icfActc
+    }
+
     private var isEmailValid: Bool {
         RegistrationValidator.isValidEmail(email)
     }
@@ -52,6 +67,7 @@ public struct CoachAuthView: View {
             && isPasswordValid
             && !firstName.trimmingCharacters(in: .whitespaces).isEmpty
             && !lastName.trimmingCharacters(in: .whitespaces).isEmpty
+            && hasAtLeastOneCertification
             && !selectedDomains.isEmpty
             && !isLoading
     }
@@ -108,32 +124,37 @@ public struct CoachAuthView: View {
                     // Form Card
                     GlassCard(style: .elevated, cornerRadius: 20) {
                         VStack(alignment: .leading, spacing: 18) {
-                            // Names
-                            HStack(spacing: 12) {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text("First Name")
-                                        .font(.caption)
-                                        .foregroundColor(ColorPalette.textSecondary)
-                                    TextField("First", text: $firstName)
-                                        .padding(10)
-                                        .background(ColorPalette.warmCharcoal)
-                                        .cornerRadius(8)
-                                        .foregroundColor(ColorPalette.textPrimary)
-                                }
+                            // Section: Personal Information
+                            Text("Coach Profile Details")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(ColorPalette.calmingCyan)
 
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text("Last Name")
-                                        .font(.caption)
-                                        .foregroundColor(ColorPalette.textSecondary)
-                                    TextField("Last", text: $lastName)
-                                        .padding(10)
-                                        .background(ColorPalette.warmCharcoal)
-                                        .cornerRadius(8)
-                                        .foregroundColor(ColorPalette.textPrimary)
-                                }
+                            // First Name (own line)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("First Name")
+                                    .font(.caption)
+                                    .foregroundColor(ColorPalette.textSecondary)
+                                TextField("Enter first name", text: $firstName)
+                                    .padding(10)
+                                    .background(ColorPalette.warmCharcoal)
+                                    .cornerRadius(8)
+                                    .foregroundColor(ColorPalette.textPrimary)
                             }
 
-                            // Email
+                            // Last Name (own line)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Last Name")
+                                    .font(.caption)
+                                    .foregroundColor(ColorPalette.textSecondary)
+                                TextField("Enter last name", text: $lastName)
+                                    .padding(10)
+                                    .background(ColorPalette.warmCharcoal)
+                                    .cornerRadius(8)
+                                    .foregroundColor(ColorPalette.textPrimary)
+                            }
+
+                            // Email Address (own line)
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Email Address")
                                     .font(.caption)
@@ -152,7 +173,7 @@ public struct CoachAuthView: View {
                                     .foregroundColor(ColorPalette.textPrimary)
                             }
 
-                            // Password
+                            // Password (own line)
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Password (9 to 32 characters)")
                                     .font(.caption)
@@ -165,35 +186,172 @@ public struct CoachAuthView: View {
                                     .foregroundColor(ColorPalette.textPrimary)
                             }
 
-                            // ICF Credential Level Picker
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("ICF Credential Level")
-                                    .font(.caption)
-                                    .foregroundColor(ColorPalette.textSecondary)
-
-                                Picker("ICF Level", selection: $icfLevel) {
-                                    Text("ACC").tag("ACC")
-                                    Text("PCC").tag("PCC")
-                                    Text("MCC").tag("MCC")
-                                    Text("ACTC").tag("ACTC")
-                                }
-                                .pickerStyle(.segmented)
-                            }
-
-                            // Credential ID
+                            // Profile Photo URL (own line, optional)
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("ICF Credential ID")
+                                Text("Profile Photo URL (Optional)")
                                     .font(.caption)
                                     .foregroundColor(ColorPalette.textSecondary)
 
-                                TextField("e.g. ICF-982341", text: $credentialId)
+                                TextField("https://example.com/photo.jpg", text: $photoUrl)
+                                    .autocorrectionDisabled()
+                                    #if os(iOS)
+                                    .textInputAutocapitalization(.never)
+                                    #endif
                                     .padding(10)
                                     .background(ColorPalette.warmCharcoal)
                                     .cornerRadius(8)
                                     .foregroundColor(ColorPalette.textPrimary)
                             }
 
-                            // Hourly Rate
+                            // Country Code (own line)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Country Code (2-letter ISO, e.g. US)")
+                                    .font(.caption)
+                                    .foregroundColor(ColorPalette.textSecondary)
+
+                                TextField("US", text: $countryCode)
+                                    .autocorrectionDisabled()
+                                    #if os(iOS)
+                                    .textInputAutocapitalization(.characters)
+                                    #endif
+                                    .padding(10)
+                                    .background(ColorPalette.warmCharcoal)
+                                    .cornerRadius(8)
+                                    .foregroundColor(ColorPalette.textPrimary)
+                            }
+
+                            // Timezone (own line)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Timezone")
+                                    .font(.caption)
+                                    .foregroundColor(ColorPalette.textSecondary)
+
+                                TextField("Timezone", text: $timezone)
+                                    .padding(10)
+                                    .background(ColorPalette.warmCharcoal)
+                                    .cornerRadius(8)
+                                    .foregroundColor(ColorPalette.textPrimary)
+                            }
+
+                            // Gender (own line)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Gender (Optional)")
+                                    .font(.caption)
+                                    .foregroundColor(ColorPalette.textSecondary)
+
+                                HStack(spacing: 6) {
+                                    genderPill(id: "MALE", label: "Male")
+                                    genderPill(id: "FEMALE", label: "Female")
+                                    genderPill(id: "NON_BINARY", label: "Non-Binary")
+                                    genderPill(id: "PREFER_NOT_TO_SAY", label: "Prefer not")
+                                }
+                            }
+
+                            Divider()
+                                .background(ColorPalette.cardBorder)
+                                .padding(.vertical, 4)
+
+                            // Section: Credentials
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("ICF Credentials (Check all that apply)")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(ColorPalette.calmingCyan)
+
+                                Text("Select at least one credential level currently held.")
+                                    .font(.caption2)
+                                    .foregroundColor(ColorPalette.textSecondary)
+                            }
+
+                            // Checkboxes: ACC, PCC, MCC, ACTC
+                            VStack(spacing: 8) {
+                                icfCheckbox(
+                                    isChecked: $icfAcc,
+                                    acronym: "ACC",
+                                    title: "Associate Certified Coach",
+                                    hours: "60+ training hrs, 100+ coaching hrs"
+                                )
+                                icfCheckbox(
+                                    isChecked: $icfPcc,
+                                    acronym: "PCC",
+                                    title: "Professional Certified Coach",
+                                    hours: "125+ training hrs, 500+ coaching hrs"
+                                )
+                                icfCheckbox(
+                                    isChecked: $icfMcc,
+                                    acronym: "MCC",
+                                    title: "Master Certified Coach",
+                                    hours: "200+ training hrs, 2,500+ coaching hrs"
+                                )
+                                icfCheckbox(
+                                    isChecked: $icfActc,
+                                    acronym: "ACTC",
+                                    title: "Advanced Certification in Team Coaching",
+                                    hours: "Team coaching competency credential"
+                                )
+                            }
+
+                            // Large Text Box for Credential Details
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Credential Details & Certificate Identifiers")
+                                    .font(.caption)
+                                    .foregroundColor(ColorPalette.textSecondary)
+
+                                ZStack(alignment: .topLeading) {
+                                    if credentialDetails.isEmpty {
+                                        Text("Enter ICF credential IDs, dates of issuance, certifying chapters, or training institutions...")
+                                            .font(.caption)
+                                            .foregroundColor(ColorPalette.textMuted)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 10)
+                                    }
+                                    TextEditor(text: $credentialDetails)
+                                        .scrollContentBackground(.hidden)
+                                        .background(Color.clear)
+                                        .foregroundColor(ColorPalette.textPrimary)
+                                        .font(.subheadline)
+                                        .padding(6)
+                                }
+                                .frame(minHeight: 85)
+                                .background(ColorPalette.warmCharcoal)
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(ColorPalette.cardBorder, lineWidth: 1)
+                                )
+                            }
+
+                            // Bio Section (Large Text Box)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Biography & Coaching Philosophy")
+                                    .font(.caption)
+                                    .foregroundColor(ColorPalette.textSecondary)
+
+                                ZStack(alignment: .topLeading) {
+                                    if biography.isEmpty {
+                                        Text("Share your coaching background, philosophy, focus areas, and approach with clients...")
+                                            .font(.caption)
+                                            .foregroundColor(ColorPalette.textMuted)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 10)
+                                    }
+                                    TextEditor(text: $biography)
+                                        .scrollContentBackground(.hidden)
+                                        .background(Color.clear)
+                                        .foregroundColor(ColorPalette.textPrimary)
+                                        .font(.subheadline)
+                                        .padding(6)
+                                }
+                                .frame(minHeight: 90)
+                                .background(ColorPalette.warmCharcoal)
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(ColorPalette.cardBorder, lineWidth: 1)
+                                )
+                            }
+
+                            // Hourly Rate (own line)
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Hourly Rate ($ USD)")
                                     .font(.caption)
@@ -278,21 +436,89 @@ public struct CoachAuthView: View {
         .preferredColorScheme(.dark)
     }
 
+    private func genderPill(id: String, label: String) -> some View {
+        let isSelected = (gender == id)
+        return Button {
+            gender = isSelected ? "" : id
+        } label: {
+            Text(label)
+                .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
+                .foregroundColor(isSelected ? ColorPalette.textPrimary : ColorPalette.textMuted)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+                .background(isSelected ? ColorPalette.calmingCyan.opacity(0.25) : ColorPalette.warmCharcoal)
+                .cornerRadius(6)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(isSelected ? ColorPalette.calmingCyan : ColorPalette.cardBorder, lineWidth: 1)
+                )
+        }
+    }
+
+    private func icfCheckbox(
+        isChecked: Binding<Bool>,
+        acronym: String,
+        title: String,
+        hours: String
+    ) -> some View {
+        Button {
+            isChecked.wrappedValue.toggle()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: isChecked.wrappedValue ? "checkmark.square.fill" : "square")
+                    .foregroundColor(isChecked.wrappedValue ? ColorPalette.sageGreen : ColorPalette.textMuted)
+                    .font(.system(size: 20))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(acronym)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(ColorPalette.textPrimary)
+                        Text("• " + title)
+                            .font(.caption)
+                            .foregroundColor(ColorPalette.textSecondary)
+                    }
+                    Text(hours)
+                        .font(.caption2)
+                        .foregroundColor(ColorPalette.textMuted)
+                }
+                Spacer()
+            }
+            .padding(10)
+            .background(isChecked.wrappedValue ? ColorPalette.sageGreen.opacity(0.12) : ColorPalette.warmCharcoal)
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isChecked.wrappedValue ? ColorPalette.sageGreen : ColorPalette.cardBorder, lineWidth: 1)
+            )
+        }
+    }
+
     private func submitRegistration() {
         guard canSubmit else { return }
         isLoading = true
         errorMessage = nil
 
         let rate = Double(hourlyRateText) ?? 150.0
+        let primaryLevel = icfMcc ? "MCC" : (icfPcc ? "PCC" : (icfActc ? "ACTC" : "ACC"))
+
         let payload = CoachRegistrationPayload(
             email: email,
             password: password,
             firstName: firstName,
             lastName: lastName,
-            icfLevel: icfLevel,
-            credentialDetails: credentialId.isEmpty ? nil : credentialId,
+            photoUrl: photoUrl.isEmpty ? nil : photoUrl,
+            gender: gender.isEmpty ? nil : gender,
+            countryCode: countryCode.isEmpty ? nil : countryCode.uppercased(),
+            icfLevel: primaryLevel,
+            icfAcc: icfAcc,
+            icfPcc: icfPcc,
+            icfMcc: icfMcc,
+            icfActc: icfActc,
+            credentialDetails: credentialDetails.isEmpty ? nil : credentialDetails,
             domainCodes: Array(selectedDomains),
-            timezone: TimeZone.current.identifier,
+            timezone: timezone.isEmpty ? TimeZone.current.identifier : timezone,
             biography: biography.isEmpty ? nil : biography,
             hourlyRate: rate
         )

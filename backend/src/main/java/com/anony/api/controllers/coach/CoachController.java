@@ -6,11 +6,13 @@ import com.anony.api.dtos.auth.LoginResponse;
 import com.anony.api.dtos.auth.UserSummaryDto;
 import com.anony.api.dtos.coach.CoachProfileDto;
 import com.anony.api.dtos.coach.CoachRegistrationRequest;
+import com.anony.api.dtos.coach.CoachUpdateRequest;
 import com.anony.domain.auth.AuthService;
 import com.anony.domain.auth.AuthenticationResult;
 import com.anony.domain.coach.CoachProfileDetails;
 import com.anony.domain.coach.CoachRegistrationCommand;
 import com.anony.domain.coach.CoachService;
+import com.anony.domain.coach.CoachUpdateCommand;
 import com.anony.domain.security.AuthenticatedUser;
 import com.anony.persistence.enums.UserRole;
 import jakarta.validation.Valid;
@@ -21,12 +23,13 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * REST controller managing coach registration, authentication, and profile verification status.
+ * REST controller managing coach registration, authentication, updates, and profile verification status.
  */
 @RestController
 @RequestMapping("/api/v1/coaches")
@@ -61,11 +64,18 @@ public class CoachController {
             coachRegistrationRequest.password(),
             coachRegistrationRequest.firstName(),
             coachRegistrationRequest.lastName(),
-            coachRegistrationRequest.icfLevel(),
-            coachRegistrationRequest.credentialDetails(),
-            coachRegistrationRequest.domainCodes(),
+            coachRegistrationRequest.photoUrl(),
+            coachRegistrationRequest.gender(),
+            coachRegistrationRequest.countryCode(),
             coachRegistrationRequest.timezone(),
             coachRegistrationRequest.biography(),
+            coachRegistrationRequest.icfLevel(),
+            coachRegistrationRequest.icfAcc(),
+            coachRegistrationRequest.icfPcc(),
+            coachRegistrationRequest.icfMcc(),
+            coachRegistrationRequest.icfActc(),
+            coachRegistrationRequest.credentialDetails(),
+            coachRegistrationRequest.domainCodes(),
             coachRegistrationRequest.hourlyRate());
 
     CoachProfileDetails details = coachService.registerCoach(command);
@@ -125,6 +135,48 @@ public class CoachController {
   }
 
   /**
+   * Updates profile details and credential submission for the authenticated coach.
+   *
+   * @param authenticatedUser authenticated security principal
+   * @param coachUpdateRequest updated profile details
+   * @return updated coach profile details
+   */
+  @PutMapping("/me")
+  public ResponseEntity<CoachProfileDto> updateProfile(
+      @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+      @Valid @RequestBody CoachUpdateRequest coachUpdateRequest) {
+    if (authenticatedUser != null) {
+      if (authenticatedUser.role() == UserRole.COACH) {
+        CoachUpdateCommand command =
+            new CoachUpdateCommand(
+                coachUpdateRequest.firstName(),
+                coachUpdateRequest.lastName(),
+                coachUpdateRequest.photoUrl(),
+                coachUpdateRequest.gender(),
+                coachUpdateRequest.countryCode(),
+                coachUpdateRequest.timezone(),
+                coachUpdateRequest.biography(),
+                coachUpdateRequest.icfLevel(),
+                coachUpdateRequest.icfAcc(),
+                coachUpdateRequest.icfPcc(),
+                coachUpdateRequest.icfMcc(),
+                coachUpdateRequest.icfActc(),
+                coachUpdateRequest.credentialDetails(),
+                coachUpdateRequest.domainCodes(),
+                coachUpdateRequest.hourlyRate());
+
+        CoachProfileDetails details =
+            coachService.updateCoachProfile(authenticatedUser.userId(), command);
+        return ResponseEntity.ok(toDto(details));
+      } else {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+      }
+    } else {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+  }
+
+  /**
    * Handles invalid argument exceptions returning 400 Bad Request.
    *
    * @param illegalArgumentException exception caught
@@ -170,6 +222,9 @@ public class CoachController {
         details.email(),
         details.firstName(),
         details.lastName(),
+        details.photoUrl(),
+        details.gender(),
+        details.countryCode(),
         details.timezone(),
         details.biography(),
         details.icfLevel(),
@@ -178,6 +233,7 @@ public class CoachController {
         details.icfMcc(),
         details.icfActc(),
         details.credentialDetails(),
+        details.hourlyRate(),
         details.isVerified(),
         details.isOnboarded(),
         details.domainCodes(),

@@ -6,6 +6,7 @@ public protocol AuthServiceProtocol: Sendable {
     func login(email: String, password: String) async throws -> AuthSession
     func logout() async throws
     func fetchCoachProfile() async throws -> CoachProfileResponse
+    func updateCoachProfile(payload: CoachUpdatePayload) async throws -> CoachProfileResponse
     func fetchClientProfile() async throws -> ClientProfileResponse
 }
 
@@ -288,6 +289,52 @@ public final class RemoteAuthService: AuthServiceProtocol, Sendable {
             throw AuthError.unauthorized
         } else {
             let serverError = parseErrorMessage(from: data) ?? "Failed to fetch coach profile with status code \(httpResponse.statusCode)."
+            throw AuthError.registrationFailed(serverError)
+        }
+    }
+
+    public func updateCoachProfile(payload: CoachUpdatePayload) async throws -> CoachProfileResponse {
+        guard let token = identityService.fetchToken(), !token.isEmpty else {
+            throw AuthError.unauthorized
+        }
+
+        let profileURL = APIEndpoints.url(for: APIEndpoints.coachesMe, baseURL: baseURL)
+        var request = URLRequest(url: profileURL)
+        request.httpMethod = "PUT"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let encoder = JSONEncoder()
+        do {
+            request.httpBody = try encoder.encode(payload)
+        } catch {
+            throw AuthError.registrationFailed("Failed to encode coach update payload.")
+        }
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            throw AuthError.registrationFailed("Network connection failure: \(error.localizedDescription)")
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AuthError.registrationFailed("Invalid server response.")
+        }
+
+        if httpResponse.statusCode == 200 {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            guard let profile = try? decoder.decode(CoachProfileResponse.self, from: data) else {
+                throw AuthError.registrationFailed("Failed to parse updated coach profile.")
+            }
+            return profile
+        } else if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+            throw AuthError.unauthorized
+        } else {
+            let serverError = parseErrorMessage(from: data) ?? "Failed to update coach profile with status code \(httpResponse.statusCode)."
             throw AuthError.registrationFailed(serverError)
         }
     }
