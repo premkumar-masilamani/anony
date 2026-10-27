@@ -32,6 +32,19 @@ ON CONFLICT DO NOTHING;
 -- ============================================================
 -- users: 4 coaches + 2 clients
 -- ============================================================
+-- TEST CREDENTIALS:
+-- Shared Password for all accounts: AnonyDemo#2026
+--
+-- Coaches:
+--   - maya.raman@example.com      | AnonyDemo#2026 | Role: COACH
+--   - daniel.okafor@example.com   | AnonyDemo#2026 | Role: COACH
+--   - sofia.lindqvist@example.com | AnonyDemo#2026 | Role: COACH
+--   - james.carter@example.com    | AnonyDemo#2026 | Role: COACH
+--
+-- Clients:
+--   - arjun.mehta@example.com     | AnonyDemo#2026 | Role: CLIENT
+--   - priya.nair@example.com      | AnonyDemo#2026 | Role: CLIENT
+-- ============================================================
 INSERT INTO users (user_id, email, password_hash, role) VALUES
     ('10000000-0000-4000-8000-000000000001', 'maya.raman@example.com',      '$2a$10$nTywmVAG7ehrVZN.TOWMAu3V47lL1K1ThMn35T93TwVUa6PdxqAvi', 'COACH'),
     ('10000000-0000-4000-8000-000000000002', 'daniel.okafor@example.com',   '$2a$10$nTywmVAG7ehrVZN.TOWMAu3V47lL1K1ThMn35T93TwVUa6PdxqAvi', 'COACH'),
