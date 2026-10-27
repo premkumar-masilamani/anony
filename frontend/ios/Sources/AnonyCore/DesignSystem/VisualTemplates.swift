@@ -6,9 +6,13 @@ public enum VisualTemplates {
     public struct SanctuaryView: View {
         @State private var isConnecting = false
         @State private var sessionReady = false
-        private let clientAlias = "SerenePine42"
+        public let clientAlias: String
+        public let onLogout: (() -> Void)?
 
-        public init() {}
+        public init(clientAlias: String? = nil, onLogout: (() -> Void)? = nil) {
+            self.clientAlias = clientAlias ?? IdentityService.shared.fetchAlias() ?? "SerenePine42"
+            self.onLogout = onLogout
+        }
 
         public var body: some View {
             ZStack {
@@ -50,6 +54,21 @@ public enum VisualTemplates {
                             }
 
                             Spacer()
+
+                            if let onLogout = onLogout {
+                                Button(action: onLogout) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                                        Text("Sign Out")
+                                            .font(.caption)
+                                    }
+                                    .foregroundColor(ColorPalette.textSecondary)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(ColorPalette.elevatedCard)
+                                    .cornerRadius(8)
+                                }
+                            }
                         }
                         .padding(.top, 16)
 
