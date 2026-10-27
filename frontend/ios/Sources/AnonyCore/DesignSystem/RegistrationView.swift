@@ -2,13 +2,13 @@ import SwiftUI
 
 public struct RegistrationView: View {
     public enum AuthMode: String, CaseIterable, Identifiable, Sendable {
-        case register = "Create Account"
+        case register = "Sign Up"
         case signIn = "Sign In"
 
         public var id: String { rawValue }
     }
 
-    @State private var authMode: AuthMode = .register
+    @State private var authMode: AuthMode = .signIn
     @State private var isShowingCoachSignUp: Bool = false
     @State private var email: String = ""
     @State private var password: String = ""
@@ -20,7 +20,7 @@ public struct RegistrationView: View {
 
     public init(
         authService: AuthServiceProtocol = RemoteAuthService(),
-        initialMode: AuthMode = .register,
+        initialMode: AuthMode = .signIn,
         onSuccess: @escaping (AuthSession) -> Void
     ) {
         self.authService = authService
@@ -121,7 +121,7 @@ public struct RegistrationView: View {
                             .foregroundColor(ColorPalette.calmingCyan)
                             .padding(.top, authMode == .register ? 10 : 36)
 
-                        Text(authMode == .register ? "Create Client Account" : "Welcome to Anony")
+                        Text(authMode == .register ? "Create Client Account" : "Sign In")
                             .font(.title)
                             .fontWeight(.bold)
                             .foregroundColor(ColorPalette.textPrimary)
@@ -138,14 +138,6 @@ public struct RegistrationView: View {
                     // Form Card
                     GlassCard(style: .elevated, cornerRadius: 20) {
                         VStack(alignment: .leading, spacing: 20) {
-                            // Auth Mode Selector
-                            Picker("Authentication Mode", selection: $authMode) {
-                                ForEach(AuthMode.allCases) { mode in
-                                    Text(mode.rawValue).tag(mode)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-
                             // Email Field
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Email Address")
@@ -212,16 +204,18 @@ public struct RegistrationView: View {
                                         .stroke(ColorPalette.cardBorder, lineWidth: 1)
                                 )
 
-                                HStack(spacing: 6) {
-                                    Image(systemName: isPasswordValid ? "checkmark.circle.fill" : "info.circle")
-                                        .font(.caption2)
-                                        .foregroundColor(isPasswordValid ? ColorPalette.sageGreen : ColorPalette.textMuted)
+                                if authMode == .register {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: isPasswordValid ? "checkmark.circle.fill" : "info.circle")
+                                            .font(.caption2)
+                                            .foregroundColor(isPasswordValid ? ColorPalette.sageGreen : ColorPalette.textMuted)
 
-                                    Text("Must be longer than 8 characters and up to 32 characters.")
-                                        .font(.caption2)
-                                        .foregroundColor(isPasswordValid ? ColorPalette.sageGreen : ColorPalette.textMuted)
+                                        Text("Must be longer than 8 characters and up to 32 characters.")
+                                            .font(.caption2)
+                                            .foregroundColor(isPasswordValid ? ColorPalette.sageGreen : ColorPalette.textMuted)
+                                    }
+                                    .padding(.top, 2)
                                 }
-                                .padding(.top, 2)
                             }
 
                             // Error message (if any)
@@ -236,36 +230,36 @@ public struct RegistrationView: View {
                                 .padding(.top, 4)
                             }
 
-                            // Submit Button
-                            AnonyButton(
-                                title: authMode == .signIn ? "Sign In" : "Complete Registration",
-                                systemImage: "arrow.right.circle.fill",
-                                variant: .primary,
-                                size: .large,
-                                isLoading: isLoading,
-                                isDisabled: !canSubmit
-                            ) {
-                                performAuthAction()
+                            // Action Buttons
+                            VStack(spacing: 12) {
+                                AnonyButton(
+                                    title: authMode == .signIn ? "Sign In" : "Sign Up",
+                                    systemImage: "arrow.right.circle.fill",
+                                    variant: .primary,
+                                    size: .large,
+                                    isLoading: isLoading,
+                                    isDisabled: !canSubmit
+                                ) {
+                                    performAuthAction()
+                                }
+
+                                AnonyButton(
+                                    title: authMode == .signIn ? "Sign Up" : "Sign In",
+                                    systemImage: authMode == .signIn ? "person.badge.plus" : "arrow.backward.circle",
+                                    variant: .secondary,
+                                    size: .large
+                                ) {
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                        authMode = (authMode == .signIn ? .register : .signIn)
+                                        errorMessage = nil
+                                    }
+                                }
                             }
                             .padding(.top, 8)
                         }
                         .padding(20)
                     }
                     .padding(.horizontal, 20)
-
-                    // Tranquil Privacy Guarantee Pill
-                    HStack(spacing: 8) {
-                        TagPillView(
-                            text: "Keychain Encrypted",
-                            systemImage: "lock.shield.fill",
-                            variant: .cyan
-                        )
-                        TagPillView(
-                            text: "Procedural Avatar",
-                            systemImage: "sparkles",
-                            variant: .sage
-                        )
-                    }
                     .padding(.bottom, 24)
                 }
             }

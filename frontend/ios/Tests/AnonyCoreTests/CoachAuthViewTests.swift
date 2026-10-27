@@ -212,10 +212,18 @@ struct CoachAuthViewTests {
         #expect(view.coachEmail == "coach@example.com")
     }
 
-    @Test("RegistrationView defaults to client sign up mode")
-    func testRegistrationViewDefaultsToSignUp() {
+    @Test("RegistrationView defaults to sign in mode")
+    func testRegistrationViewDefaultsToSignIn() {
         let view = RegistrationView(onSuccess: { _ in })
         let mirror = Mirror(reflecting: view)
         #expect(!mirror.children.isEmpty)
+    }
+
+    @Test("RegistrationView accepts initialMode parameter")
+    func testRegistrationViewInitialMode() {
+        let registerView = RegistrationView(initialMode: .register, onSuccess: { _ in })
+        let signInView = RegistrationView(initialMode: .signIn, onSuccess: { _ in })
+        #expect(!Mirror(reflecting: registerView).children.isEmpty)
+        #expect(!Mirror(reflecting: signInView).children.isEmpty)
     }
 }
