@@ -15,6 +15,7 @@ public enum APIEndpoints {
     // MARK: - Auth & Identity
     public static let register = "/api/v1/auth/register"
     public static let login = "/api/v1/auth/login"
+    public static let logout = "/api/v1/auth/logout"
     public static let me = "/api/v1/auth/me"
 
     // MARK: - Coaches & Directory
@@ -43,11 +44,11 @@ public enum APIEndpoints {
     }
 
     // MARK: - URL Resolution Helper
-    /// Resolves the absolute URL using the active APIConfig.currentBaseURL.
-    public static func url(for endpointPath: String) -> URL {
-        if let fullURL = URL(string: endpointPath, relativeTo: APIConfig.currentBaseURL)?.absoluteURL {
+    /// Resolves the absolute URL using the provided base URL or active APIConfig.currentBaseURL.
+    public static func url(for endpointPath: String, baseURL: URL = APIConfig.currentBaseURL) -> URL {
+        if let fullURL = URL(string: endpointPath, relativeTo: baseURL)?.absoluteURL {
             return fullURL
         }
-        return APIConfig.currentBaseURL.appendingPathComponent(endpointPath)
+        return baseURL.appendingPathComponent(endpointPath)
     }
 }

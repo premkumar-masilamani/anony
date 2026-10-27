@@ -9,6 +9,7 @@ public struct ClientRootFlowView: View {
     public let userAlias: String?
     public let userEmail: String?
     public let onboardingService: OnboardingServiceProtocol
+    public let authService: AuthServiceProtocol
     public let onSessionAuthenticated: (AuthSession) -> Void
     public let onSignOut: () -> Void
 
@@ -19,6 +20,7 @@ public struct ClientRootFlowView: View {
         userAlias: String? = nil,
         userEmail: String? = nil,
         onboardingService: OnboardingServiceProtocol = UserDefaultsOnboardingService.shared,
+        authService: AuthServiceProtocol = RemoteAuthService(),
         onSessionAuthenticated: @escaping (AuthSession) -> Void,
         onSignOut: @escaping () -> Void
     ) {
@@ -26,6 +28,7 @@ public struct ClientRootFlowView: View {
         self.userAlias = userAlias
         self.userEmail = userEmail
         self.onboardingService = onboardingService
+        self.authService = authService
         self.onSessionAuthenticated = onSessionAuthenticated
         self.onSignOut = onSignOut
         self._hasCompletedOnboarding = State(initialValue: onboardingService.hasCompletedOnboarding())
@@ -51,7 +54,7 @@ public struct ClientRootFlowView: View {
         Group {
             switch currentFlowState {
             case .unauthenticated:
-                RegistrationView { session in
+                RegistrationView(authService: authService) { session in
                     onSessionAuthenticated(session)
                     hasCompletedOnboarding = onboardingService.hasCompletedOnboarding()
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {

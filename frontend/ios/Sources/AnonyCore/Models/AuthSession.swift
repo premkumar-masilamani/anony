@@ -29,7 +29,10 @@ public enum AuthError: LocalizedError, Sendable, Equatable {
     case invalidEmail
     case passwordTooShort
     case passwordTooLong
+    case invalidCredentials
+    case unauthorized
     case registrationFailed(String)
+    case logoutFailed(String)
     case keychainPersistenceFailed
 
     public var errorDescription: String? {
@@ -40,8 +43,14 @@ public enum AuthError: LocalizedError, Sendable, Equatable {
             return "Password must be longer than 8 characters."
         case .passwordTooLong:
             return "Password cannot exceed 32 characters."
+        case .invalidCredentials:
+            return "Invalid email or password."
+        case .unauthorized:
+            return "Session expired or unauthorized."
         case .registrationFailed(let reason):
             return "Registration could not be completed: \(reason)"
+        case .logoutFailed(let reason):
+            return "Logout could not be completed: \(reason)"
         case .keychainPersistenceFailed:
             return "Failed to save secure session credentials."
         }
