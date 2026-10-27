@@ -202,6 +202,7 @@ public class DefaultCoachService implements CoachService {
                   List<CoachDomainEntity> existingDomains =
                       coachDomainRepository.findByCoach_CoachId(updatedCoachEntity.getCoachId());
                   coachDomainRepository.deleteAll(existingDomains);
+                  coachDomainRepository.flush();
 
                   List<String> assignedDomainCodes =
                       saveCoachDomains(updatedCoachEntity, coachUpdateCommand.domainCodes());

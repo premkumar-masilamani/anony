@@ -385,40 +385,38 @@ public struct CoachProfileEditView: View {
                                         .foregroundColor(ColorPalette.calmingCyan)
                                 }
 
-                                // Selected Domains Chips (Horizontal & Readable)
+                                // Selected Domains Chips (Wrapped & Fully Visible)
                                 if !selectedDomains.isEmpty {
-                                    ScrollView(.horizontal, showsIndicators: false) {
-                                        HStack(spacing: 8) {
-                                            ForEach(Array(selectedDomains).sorted(), id: \.self) { domain in
-                                                HStack(spacing: 6) {
-                                                    Text(CoachingDomainConfig.label(forCode: domain))
-                                                        .font(.system(size: 12, weight: .medium))
-                                                        .foregroundColor(ColorPalette.calmingCyan)
-                                                        .lineLimit(1)
-                                                        .fixedSize(horizontal: true, vertical: false)
+                                    FlowLayout(spacing: 8) {
+                                        ForEach(Array(selectedDomains).sorted(), id: \.self) { domain in
+                                            HStack(spacing: 6) {
+                                                Text(CoachingDomainConfig.label(forCode: domain))
+                                                    .font(.system(size: 12, weight: .medium))
+                                                    .foregroundColor(ColorPalette.calmingCyan)
+                                                    .lineLimit(1)
+                                                    .fixedSize(horizontal: true, vertical: false)
 
-                                                    Button {
-                                                        if selectedDomains.count > 1 {
-                                                            selectedDomains.remove(domain)
-                                                        }
-                                                    } label: {
-                                                        Image(systemName: "xmark.circle.fill")
-                                                            .font(.system(size: 13))
-                                                            .foregroundColor(ColorPalette.calmingCyan.opacity(0.7))
+                                                Button {
+                                                    if selectedDomains.count > 1 {
+                                                        selectedDomains.remove(domain)
                                                     }
+                                                } label: {
+                                                    Image(systemName: "xmark.circle.fill")
+                                                        .font(.system(size: 13))
+                                                        .foregroundColor(ColorPalette.calmingCyan.opacity(0.7))
                                                 }
-                                                .padding(.horizontal, 10)
-                                                .padding(.vertical, 6)
-                                                .background(ColorPalette.calmingCyan.opacity(0.12))
-                                                .cornerRadius(14)
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 14)
-                                                        .stroke(ColorPalette.calmingCyan.opacity(0.35), lineWidth: 1)
-                                                )
                                             }
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 6)
+                                            .background(ColorPalette.calmingCyan.opacity(0.12))
+                                            .cornerRadius(14)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 14)
+                                                    .stroke(ColorPalette.calmingCyan.opacity(0.35), lineWidth: 1)
+                                            )
                                         }
-                                        .padding(.vertical, 2)
                                     }
+                                    .padding(.vertical, 2)
                                 }
 
                                 // Dropdown Menu to add standard domains
@@ -505,7 +503,7 @@ public struct CoachProfileEditView: View {
                             }
 
                             AnonyButton(
-                                title: "Save & Resubmit for Verification",
+                                title: "Submit",
                                 systemImage: "checkmark.seal.fill",
                                 variant: .primary,
                                 size: .large,

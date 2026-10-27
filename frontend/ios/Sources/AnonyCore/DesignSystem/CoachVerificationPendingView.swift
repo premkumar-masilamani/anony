@@ -189,26 +189,24 @@ public struct CoachVerificationPendingView: View {
                                             .fontWeight(.semibold)
                                             .foregroundColor(ColorPalette.textSecondary)
 
-                                        ScrollView(.horizontal, showsIndicators: false) {
-                                            HStack(spacing: 8) {
-                                                ForEach(coach.domainCodes, id: \.self) { domain in
-                                                    Text(CoachingDomainConfig.label(forCode: domain))
-                                                        .font(.system(size: 12, weight: .medium))
-                                                        .foregroundColor(ColorPalette.calmingCyan)
-                                                        .lineLimit(1)
-                                                        .fixedSize(horizontal: true, vertical: false)
-                                                        .padding(.horizontal, 12)
-                                                        .padding(.vertical, 6)
-                                                        .background(ColorPalette.calmingCyan.opacity(0.12))
-                                                        .cornerRadius(12)
-                                                        .overlay(
-                                                            RoundedRectangle(cornerRadius: 12)
-                                                                .stroke(ColorPalette.calmingCyan.opacity(0.3), lineWidth: 1)
-                                                        )
-                                                }
+                                        FlowLayout(spacing: 8) {
+                                            ForEach(coach.domainCodes, id: \.self) { domain in
+                                                Text(CoachingDomainConfig.label(forCode: domain))
+                                                    .font(.system(size: 12, weight: .medium))
+                                                    .foregroundColor(ColorPalette.calmingCyan)
+                                                    .lineLimit(1)
+                                                    .fixedSize(horizontal: true, vertical: false)
+                                                    .padding(.horizontal, 12)
+                                                    .padding(.vertical, 6)
+                                                    .background(ColorPalette.calmingCyan.opacity(0.12))
+                                                    .cornerRadius(12)
+                                                    .overlay(
+                                                        RoundedRectangle(cornerRadius: 12)
+                                                            .stroke(ColorPalette.calmingCyan.opacity(0.3), lineWidth: 1)
+                                                    )
                                             }
-                                            .padding(.vertical, 2)
                                         }
+                                        .padding(.vertical, 2)
                                     }
                                 }
 
