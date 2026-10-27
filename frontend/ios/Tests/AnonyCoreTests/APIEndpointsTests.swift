@@ -14,6 +14,9 @@ struct APIEndpointsTests {
 
     @Test("APIEndpoints path constants adhere to v1 REST contracts")
     func testAPIEndpointPaths() {
+        #expect(APIEndpoints.register == "/api/v1/auth/register")
+        #expect(APIEndpoints.login == "/api/v1/auth/login")
+        #expect(APIEndpoints.logout == "/api/v1/auth/logout")
         #expect(APIEndpoints.coaches == "/api/v1/coaches")
         #expect(APIEndpoints.favorites == "/api/v1/coaches/favorites")
         #expect(APIEndpoints.blindMatch == "/api/v1/match/blind")

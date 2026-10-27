@@ -4,6 +4,7 @@ import AnonyCore
 struct ContentView: View {
     public let onboardingService: OnboardingServiceProtocol
     public let identityService: IdentityService
+    public let authService: AuthServiceProtocol
 
     @State private var isAuthenticated: Bool
     @State private var userEmail: String?
@@ -11,10 +12,12 @@ struct ContentView: View {
 
     public init(
         onboardingService: OnboardingServiceProtocol = UserDefaultsOnboardingService.shared,
-        identityService: IdentityService = .shared
+        identityService: IdentityService = .shared,
+        authService: AuthServiceProtocol = MockAuthService()
     ) {
         self.onboardingService = onboardingService
         self.identityService = identityService
+        self.authService = authService
         self._isAuthenticated = State(initialValue: identityService.hasActiveSession())
         self._userEmail = State(initialValue: identityService.fetchEmail())
         self._userAlias = State(initialValue: identityService.fetchAlias())
@@ -31,6 +34,9 @@ struct ContentView: View {
                 userAlias = session.alias
             },
             onSignOut: {
+                Task {
+                    try? await authService.logout()
+                }
                 _ = identityService.clearSession()
                 userEmail = nil
                 userAlias = nil

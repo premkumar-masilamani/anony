@@ -58,4 +58,60 @@ struct AuthServiceTests {
             _ = try await authService.register(email: "user@domain", password: password)
         }
     }
+
+    @Test("Login succeeds with valid credentials and persists session")
+    func testSuccessfulLogin() async throws {
+        let authService = MockAuthService()
+        let email = "maya.raman@example.com"
+        let password = "validPassword123"
+
+        let session = try await authService.login(email: email, password: password)
+
+        #expect(!session.token.isEmpty)
+        #expect(!session.alias.isEmpty)
+        #expect(session.email == email)
+        #expect(IdentityService.shared.hasActiveSession())
+    }
+
+    @Test("Login fails with short or long password")
+    func testLoginPasswordBoundaries() async {
+        let authService = MockAuthService()
+        let email = "user@example.com"
+
+        await #expect(throws: AuthError.passwordTooShort) {
+            _ = try await authService.login(email: email, password: "short")
+        }
+
+        await #expect(throws: AuthError.passwordTooLong) {
+            _ = try await authService.login(email: email, password: String(repeating: "x", count: 35))
+        }
+    }
+
+    @Test("Login fails with invalid email format")
+    func testLoginInvalidEmail() async {
+        let authService = MockAuthService()
+
+        await #expect(throws: AuthError.invalidEmail) {
+            _ = try await authService.login(email: "invalid-email", password: "validPassword123")
+        }
+    }
+
+    @Test("Login fails with invalid credentials")
+    func testLoginInvalidCredentials() async {
+        let authService = MockAuthService()
+
+        await #expect(throws: AuthError.invalidCredentials) {
+            _ = try await authService.login(email: "maya.raman@example.com", password: "WrongPassword#2026")
+        }
+    }
+
+    @Test("Logout clears active session from Keychain")
+    func testSuccessfulLogout() async throws {
+        let authService = MockAuthService()
+        _ = try await authService.login(email: "user@example.com", password: "validPassword123")
+        #expect(IdentityService.shared.hasActiveSession())
+
+        try await authService.logout()
+        #expect(!IdentityService.shared.hasActiveSession())
+    }
 }

@@ -15,6 +15,7 @@ public enum APIEndpoints {
     // MARK: - Auth & Identity
     public static let register = "/api/v1/auth/register"
     public static let login = "/api/v1/auth/login"
+    public static let logout = "/api/v1/auth/logout"
     public static let me = "/api/v1/auth/me"
 
     // MARK: - Coaches & Directory

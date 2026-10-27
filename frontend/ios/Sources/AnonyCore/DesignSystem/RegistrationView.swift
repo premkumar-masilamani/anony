@@ -1,6 +1,14 @@
 import SwiftUI
 
 public struct RegistrationView: View {
+    public enum AuthMode: String, CaseIterable, Identifiable, Sendable {
+        case signIn = "Sign In"
+        case register = "Create Account"
+
+        public var id: String { rawValue }
+    }
+
+    @State private var authMode: AuthMode = .signIn
     @State private var email: String = ""
     @State private var password: String = ""
     @State private var isLoading: Bool = false
@@ -11,9 +19,11 @@ public struct RegistrationView: View {
 
     public init(
         authService: AuthServiceProtocol = MockAuthService(),
+        initialMode: AuthMode = .signIn,
         onSuccess: @escaping (AuthSession) -> Void
     ) {
         self.authService = authService
+        self._authMode = State(initialValue: initialMode)
         self.onSuccess = onSuccess
     }
 
@@ -74,6 +84,14 @@ public struct RegistrationView: View {
                     // Form Card
                     GlassCard(style: .elevated, cornerRadius: 20) {
                         VStack(alignment: .leading, spacing: 20) {
+                            // Auth Mode Selector
+                            Picker("Authentication Mode", selection: $authMode) {
+                                ForEach(AuthMode.allCases) { mode in
+                                    Text(mode.rawValue).tag(mode)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+
                             // Email Field
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Email Address")
@@ -167,14 +185,14 @@ public struct RegistrationView: View {
 
                             // Submit Button
                             AnonyButton(
-                                title: "Complete Registration",
+                                title: authMode == .signIn ? "Sign In" : "Complete Registration",
                                 systemImage: "arrow.right.circle.fill",
                                 variant: .primary,
                                 size: .large,
                                 isLoading: isLoading,
                                 isDisabled: !canSubmit
                             ) {
-                                performRegistration()
+                                performAuthAction()
                             }
                             .padding(.top, 8)
                         }
@@ -202,16 +220,22 @@ public struct RegistrationView: View {
         .preferredColorScheme(.dark)
     }
 
-    private func performRegistration() {
+    private func performAuthAction() {
         guard canSubmit else { return }
         isLoading = true
         errorMessage = nil
 
         Task { @MainActor in
             do {
-                let session = try await authService.register(email: email, password: password)
-                isLoading = false
-                onSuccess(session)
+                if authMode == .signIn {
+                    let session = try await authService.login(email: email, password: password)
+                    isLoading = false
+                    onSuccess(session)
+                } else {
+                    let session = try await authService.register(email: email, password: password)
+                    isLoading = false
+                    onSuccess(session)
+                }
             } catch let error as AuthError {
                 isLoading = false
                 errorMessage = error.localizedDescription

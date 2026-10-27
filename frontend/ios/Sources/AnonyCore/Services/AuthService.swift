@@ -2,6 +2,8 @@ import Foundation
 
 public protocol AuthServiceProtocol: Sendable {
     func register(email: String, password: String) async throws -> AuthSession
+    func login(email: String, password: String) async throws -> AuthSession
+    func logout() async throws
 }
 
 public final class MockAuthService: AuthServiceProtocol, Sendable {
@@ -47,5 +49,48 @@ public final class MockAuthService: AuthServiceProtocol, Sendable {
         _ = identityService.saveSession(token: session.token, alias: session.alias, email: session.email)
 
         return session
+    }
+
+    public func login(email: String, password: String) async throws -> AuthSession {
+        // Validate email
+        guard RegistrationValidator.isValidEmail(email) else {
+            throw AuthError.invalidEmail
+        }
+
+        // Validate password strictly: length > 8 and <= 32
+        if password.count <= 8 {
+            throw AuthError.passwordTooShort
+        }
+        if password.count > 32 {
+            throw AuthError.passwordTooLong
+        }
+
+        if password == "WrongPassword#2026" || email == "unregistered@example.com" {
+            throw AuthError.invalidCredentials
+        }
+
+        // Mock API network latency
+        try await Task.sleep(nanoseconds: 200_000_000)
+
+        let seed = abs(email.hashValue) % 1000
+        let tranquilPrefixes = ["Tranquil", "Serene", "Calm", "Gentle", "Peaceful", "Silent", "Quiet"]
+        let tranquilNouns = ["River", "Pine", "Willow", "Breeze", "Creek", "Stone", "Meadow"]
+        let alias = "\(tranquilPrefixes[seed % tranquilPrefixes.count])\(tranquilNouns[(seed / 7) % tranquilNouns.count])\(seed % 100)"
+        let avatarId = "avatar-\(UUID().uuidString.prefix(8))"
+        let token = "jwt_mock_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
+
+        let session = AuthSession(
+            token: token,
+            alias: alias,
+            avatarId: avatarId,
+            email: email
+        )
+
+        _ = identityService.saveSession(token: session.token, alias: session.alias, email: session.email)
+        return session
+    }
+
+    public func logout() async throws {
+        _ = identityService.clearSession()
     }
 }
