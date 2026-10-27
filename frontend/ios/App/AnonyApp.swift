@@ -4,11 +4,11 @@ import AnonyCore
 @main
 struct AnonyApp: App {
     init() {
-        #if DEBUG
-        if ProcessInfo.processInfo.environment["ANONY_API_BASE_URL"] == nil {
-            APIConfig.currentBaseURL = URL(string: "http://localhost:8080")!
+        guard let envURLString = ProcessInfo.processInfo.environment["ANONY_API_BASE_URL"],
+              let envURL = URL(string: envURLString) else {
+            fatalError("Missing required environment variable: ANONY_API_BASE_URL")
         }
-        #endif
+        APIConfig.currentBaseURL = envURL
     }
 
     var body: some Scene {

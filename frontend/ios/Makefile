@@ -1,3 +1,8 @@
+-include ../../.env
+ifneq ($(wildcard ../../.env),)
+    export $(shell sed 's/=.*//' ../../.env)
+endif
+
 SWIFT ?= swift
 XCODEBUILD ?= xcodebuild
 
