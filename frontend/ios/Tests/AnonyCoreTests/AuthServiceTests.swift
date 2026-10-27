@@ -41,14 +41,21 @@ struct AuthServiceTests {
         }
     }
 
-    @Test("Registration fails when email is empty")
+    @Test("Registration fails when email is empty or malformed")
     func testRegistrationFailsEmptyEmail() async {
         let authService = MockAuthService()
-        let email = ""
         let password = "validPassword123"
 
         await #expect(throws: AuthError.invalidEmail) {
-            _ = try await authService.register(email: email, password: password)
+            _ = try await authService.register(email: "", password: password)
+        }
+
+        await #expect(throws: AuthError.invalidEmail) {
+            _ = try await authService.register(email: "not-an-email", password: password)
+        }
+
+        await #expect(throws: AuthError.invalidEmail) {
+            _ = try await authService.register(email: "user@domain", password: password)
         }
     }
 }
