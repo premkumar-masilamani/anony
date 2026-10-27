@@ -21,20 +21,10 @@ public struct CoachProfileEditView: View {
     @State private var biography: String
     @State private var hourlyRateText: String
     @State private var selectedDomains: Set<String>
+    @State private var customDomainText: String = ""
 
     @State private var isSaving: Bool = false
     @State private var errorMessage: String? = nil
-
-    private let availableDomains = [
-        ("CAREER", "Career"),
-        ("LEADERSHIP", "Leadership"),
-        ("BURNOUT", "Burnout"),
-        ("WORK_LIFE_BALANCE", "Work-Life"),
-        ("CONFIDENCE", "Confidence"),
-        ("MINDSET", "Mindset"),
-        ("COMMUNICATION", "Communication"),
-        ("PURPOSE", "Purpose")
-    ]
 
     private let authService: AuthServiceProtocol
     private let onSaved: (CoachProfileResponse) -> Void
@@ -105,6 +95,14 @@ public struct CoachProfileEditView: View {
         if let firstTz = tzs.first {
             timezone = firstTz.value
         }
+    }
+
+    private func addCustomDomain() {
+        let trimmed = customDomainText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let normalized = CoachingDomainConfig.normalizeCode(from: trimmed)
+        selectedDomains.insert(normalized)
+        customDomainText = ""
     }
 
     public var body: some View {
@@ -375,38 +373,124 @@ public struct CoachProfileEditView: View {
                                     .foregroundColor(ColorPalette.textPrimary)
                             }
 
-                            // Coaching Domains
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Coaching Domains")
-                                    .font(.caption)
-                                    .foregroundColor(ColorPalette.textSecondary)
+                            // Domain Selection & Custom Domains
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    Text("Coaching Domains")
+                                        .font(.caption)
+                                        .foregroundColor(ColorPalette.textSecondary)
+                                    Spacer()
+                                    Text("(\(selectedDomains.count) selected)")
+                                        .font(.caption2)
+                                        .foregroundColor(ColorPalette.calmingCyan)
+                                }
 
-                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 8)], spacing: 8) {
-                                    ForEach(availableDomains, id: \.0) { domain in
-                                        let isSelected = selectedDomains.contains(domain.0)
+                                // Selected Domains Chips (Horizontal & Readable)
+                                if !selectedDomains.isEmpty {
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 8) {
+                                            ForEach(Array(selectedDomains).sorted(), id: \.self) { domain in
+                                                HStack(spacing: 6) {
+                                                    Text(CoachingDomainConfig.label(forCode: domain))
+                                                        .font(.system(size: 12, weight: .medium))
+                                                        .foregroundColor(ColorPalette.calmingCyan)
+                                                        .lineLimit(1)
+                                                        .fixedSize(horizontal: true, vertical: false)
+
+                                                    Button {
+                                                        if selectedDomains.count > 1 {
+                                                            selectedDomains.remove(domain)
+                                                        }
+                                                    } label: {
+                                                        Image(systemName: "xmark.circle.fill")
+                                                            .font(.system(size: 13))
+                                                            .foregroundColor(ColorPalette.calmingCyan.opacity(0.7))
+                                                    }
+                                                }
+                                                .padding(.horizontal, 10)
+                                                .padding(.vertical, 6)
+                                                .background(ColorPalette.calmingCyan.opacity(0.12))
+                                                .cornerRadius(14)
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 14)
+                                                        .stroke(ColorPalette.calmingCyan.opacity(0.35), lineWidth: 1)
+                                                )
+                                            }
+                                        }
+                                        .padding(.vertical, 2)
+                                    }
+                                }
+
+                                // Dropdown Menu to add standard domains
+                                Menu {
+                                    ForEach(CoachingDomainConfig.standardDomains) { option in
                                         Button {
-                                            if isSelected {
+                                            if selectedDomains.contains(option.code) {
                                                 if selectedDomains.count > 1 {
-                                                    selectedDomains.remove(domain.0)
+                                                    selectedDomains.remove(option.code)
                                                 }
                                             } else {
-                                                selectedDomains.insert(domain.0)
+                                                selectedDomains.insert(option.code)
                                             }
                                         } label: {
-                                            Text(domain.1)
-                                                .font(.caption)
-                                                .fontWeight(isSelected ? .semibold : .regular)
-                                                .foregroundColor(isSelected ? ColorPalette.textPrimary : ColorPalette.textMuted)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 8)
-                                                .background(isSelected ? ColorPalette.calmingCyan.opacity(0.3) : ColorPalette.warmCharcoal)
-                                                .cornerRadius(8)
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 8)
-                                                        .stroke(isSelected ? ColorPalette.calmingCyan : ColorPalette.cardBorder, lineWidth: 1)
-                                                )
+                                            if selectedDomains.contains(option.code) {
+                                                Label(option.label, systemImage: "checkmark")
+                                            } else {
+                                                Text(option.label)
+                                            }
                                         }
                                     }
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "plus.circle")
+                                            .foregroundColor(ColorPalette.calmingCyan)
+                                        Text("Select domain from dropdown...")
+                                            .font(.subheadline)
+                                            .foregroundColor(ColorPalette.textSecondary)
+                                        Spacer()
+                                        Image(systemName: "chevron.up.chevron.down")
+                                            .font(.caption)
+                                            .foregroundColor(ColorPalette.textMuted)
+                                    }
+                                    .padding(10)
+                                    .background(ColorPalette.warmCharcoal)
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(ColorPalette.cardBorder, lineWidth: 1)
+                                    )
+                                }
+                                .accessibilityIdentifier("DomainDropdown")
+
+                                // Custom Domain Input
+                                HStack(spacing: 8) {
+                                    TextField("Add custom domain (e.g. Executive Presence)", text: $customDomainText)
+                                        .padding(10)
+                                        .background(ColorPalette.warmCharcoal)
+                                        .cornerRadius(8)
+                                        .foregroundColor(ColorPalette.textPrimary)
+                                        .onSubmit {
+                                            addCustomDomain()
+                                        }
+
+                                    Button(action: addCustomDomain) {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "plus")
+                                            Text("Add")
+                                        }
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(ColorPalette.calmingCyan)
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 10)
+                                        .background(ColorPalette.calmingCyan.opacity(0.15))
+                                        .cornerRadius(8)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(ColorPalette.calmingCyan.opacity(0.4), lineWidth: 1)
+                                        )
+                                    }
+                                    .disabled(customDomainText.trimmingCharacters(in: .whitespaces).isEmpty)
                                 }
                             }
 

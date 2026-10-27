@@ -183,22 +183,31 @@ public struct CoachVerificationPendingView: View {
 
                                 // Domain Specializations
                                 if !coach.domainCodes.isEmpty {
-                                    VStack(alignment: .leading, spacing: 6) {
+                                    VStack(alignment: .leading, spacing: 8) {
                                         Text("Specialties")
                                             .font(.caption)
                                             .fontWeight(.semibold)
                                             .foregroundColor(ColorPalette.textSecondary)
 
-                                        HStack(spacing: 6) {
-                                            ForEach(coach.domainCodes, id: \.self) { domain in
-                                                Text(domain)
-                                                    .font(.system(size: 11, weight: .medium))
-                                                    .foregroundColor(ColorPalette.calmingCyan)
-                                                    .padding(.horizontal, 8)
-                                                    .padding(.vertical, 4)
-                                                    .background(ColorPalette.calmingCyan.opacity(0.12))
-                                                    .cornerRadius(6)
+                                        ScrollView(.horizontal, showsIndicators: false) {
+                                            HStack(spacing: 8) {
+                                                ForEach(coach.domainCodes, id: \.self) { domain in
+                                                    Text(CoachingDomainConfig.label(forCode: domain))
+                                                        .font(.system(size: 12, weight: .medium))
+                                                        .foregroundColor(ColorPalette.calmingCyan)
+                                                        .lineLimit(1)
+                                                        .fixedSize(horizontal: true, vertical: false)
+                                                        .padding(.horizontal, 12)
+                                                        .padding(.vertical, 6)
+                                                        .background(ColorPalette.calmingCyan.opacity(0.12))
+                                                        .cornerRadius(12)
+                                                        .overlay(
+                                                            RoundedRectangle(cornerRadius: 12)
+                                                                .stroke(ColorPalette.calmingCyan.opacity(0.3), lineWidth: 1)
+                                                        )
+                                                }
                                             }
+                                            .padding(.vertical, 2)
                                         }
                                     }
                                 }

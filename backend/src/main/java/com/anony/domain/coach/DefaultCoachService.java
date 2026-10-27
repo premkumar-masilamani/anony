@@ -334,15 +334,26 @@ public class DefaultCoachService implements CoachService {
         if (StringUtils.isNotBlank(domainCode)) {
           Optional<DomainEntity> domainEntityOptional =
               domainRepository.findByCodeIgnoreCase(domainCode.trim());
+          DomainEntity domainEntity;
           if (domainEntityOptional.isPresent()) {
-            CoachDomainEntity coachDomainEntity = new CoachDomainEntity();
-            coachDomainEntity.setCoach(coachEntity);
-            coachDomainEntity.setDomain(domainEntityOptional.get());
-            coachDomainRepository.save(coachDomainEntity);
-            assignedDomainCodes.add(domainEntityOptional.get().getCode());
+            domainEntity = domainEntityOptional.get();
           } else {
-            assignedDomainCodes.add(domainCode.trim().toUpperCase(Locale.ROOT));
+            DomainEntity newDomain = new DomainEntity();
+            String formattedCode =
+                domainCode.trim().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9_]+", "_");
+            if (formattedCode.length() > 40) {
+              formattedCode = formattedCode.substring(0, 40);
+            }
+            newDomain.setCode(formattedCode);
+            newDomain.setName(domainCode.trim());
+            DomainEntity saved = domainRepository.save(newDomain);
+            domainEntity = saved != null ? saved : newDomain;
           }
+          CoachDomainEntity coachDomainEntity = new CoachDomainEntity();
+          coachDomainEntity.setCoach(coachEntity);
+          coachDomainEntity.setDomain(domainEntity);
+          coachDomainRepository.save(coachDomainEntity);
+          assignedDomainCodes.add(domainEntity.getCode());
         }
       }
     }
