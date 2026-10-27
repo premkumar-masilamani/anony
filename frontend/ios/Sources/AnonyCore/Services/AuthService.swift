@@ -120,6 +120,7 @@ public final class RemoteAuthService: AuthServiceProtocol, Sendable {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.httpBody = Data()
 
             do {
                 _ = try await session.data(for: request)

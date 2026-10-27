@@ -35,12 +35,11 @@ struct ContentView: View {
                 userAlias = session.alias
             },
             onSignOut: {
+                userEmail = nil
+                userAlias = nil
                 Task {
                     try? await authService.logout()
                 }
-                _ = identityService.clearSession()
-                userEmail = nil
-                userAlias = nil
             }
         )
         .preferredColorScheme(.dark)
