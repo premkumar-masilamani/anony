@@ -151,6 +151,7 @@ class SecurityConfigurationTest {
               when(registry.requestMatchers(any(HttpMethod.class), any(String.class)))
                   .thenReturn(authorizedUrl);
               when(registry.requestMatchers(any(String.class))).thenReturn(authorizedUrl);
+              when(registry.requestMatchers(any(String[].class))).thenReturn(authorizedUrl);
               when(registry.anyRequest()).thenReturn(authorizedUrl);
               when(authorizedUrl.permitAll()).thenReturn(registry);
               when(authorizedUrl.authenticated()).thenReturn(registry);
