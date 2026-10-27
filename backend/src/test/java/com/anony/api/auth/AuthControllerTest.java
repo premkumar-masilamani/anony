@@ -1,5 +1,6 @@
 package com.anony.api.auth;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -9,8 +10,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.anony.domain.auth.AuthService;
 import com.anony.domain.auth.AuthenticationResult;
+import com.anony.domain.client.ClientProfileDetails;
+import com.anony.domain.client.ClientRegistrationCommand;
+import com.anony.domain.client.ClientService;
 import com.anony.domain.security.AuthenticatedUser;
 import com.anony.persistence.enums.UserRole;
+import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,12 +36,15 @@ class AuthControllerTest {
   @Mock
   private AuthService authService;
 
+  @Mock
+  private ClientService clientService;
+
   private MockMvc mockMvc;
 
   @BeforeEach
   void setUp() {
     SecurityContextHolder.clearContext();
-    AuthController authController = new AuthController(authService);
+    AuthController authController = new AuthController(authService, clientService);
     this.mockMvc =
         MockMvcBuilders.standaloneSetup(authController)
             .setCustomArgumentResolvers(
@@ -159,5 +167,51 @@ class AuthControllerTest {
             post("/api/v1/auth/logout")
                 .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  @DisplayName("POST /api/v1/auth/register should create client and return 201 Created with auth token")
+  void testRegisterClientSuccess() throws Exception {
+    UUID userId = UUID.randomUUID();
+    UUID clientId = UUID.randomUUID();
+    ClientProfileDetails clientProfileDetails =
+        new ClientProfileDetails(
+            clientId,
+            userId,
+            "newclient@example.com",
+            "Anonymous",
+            "Client",
+            "Courageous Owl",
+            true,
+            false,
+            Instant.now());
+
+    when(clientService.registerClient(any(ClientRegistrationCommand.class)))
+        .thenReturn(clientProfileDetails);
+
+    AuthenticationResult authenticationResult =
+        new AuthenticationResult(
+            userId, "newclient@example.com", UserRole.CLIENT, "mock.jwt.token", 86400L);
+    when(authService.authenticate("newclient@example.com", "SecurePassword#123"))
+        .thenReturn(authenticationResult);
+
+    String payload =
+        """
+        {
+          "email": "newclient@example.com",
+          "password": "SecurePassword#123",
+          "alias": "Courageous Owl"
+        }
+        """;
+
+    mockMvc
+        .perform(
+            post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.token").value("mock.jwt.token"))
+        .andExpect(jsonPath("$.user.email").value("newclient@example.com"))
+        .andExpect(jsonPath("$.user.role").value("CLIENT"));
   }
 }

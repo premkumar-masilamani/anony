@@ -17,9 +17,13 @@ public enum APIEndpoints {
     public static let login = "/api/v1/auth/login"
     public static let logout = "/api/v1/auth/logout"
     public static let me = "/api/v1/auth/me"
+    public static let clientsMe = "/api/v1/clients/me"
 
     // MARK: - Coaches & Directory
     public static let coaches = "/api/v1/coaches"
+    public static let coachesRegister = "/api/v1/coaches/register"
+    public static let coachesLogin = "/api/v1/coaches/login"
+    public static let coachesMe = "/api/v1/coaches/me"
     public static let favorites = "/api/v1/coaches/favorites"
 
     public static func coachDetails(id: UUID) -> String {

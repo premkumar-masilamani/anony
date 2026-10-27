@@ -36,6 +36,8 @@ make dev
 - In Swift Concurrency (`Sendable`), avoid using `NSLock` inside `async` methods; prefer immutable values, actor isolation, or `@MainActor` state wrappers.
 - Decouple directory, filter, and detail view states into `@MainActor` ObservableObject view models (e.g. `CoachDiscoveryViewModel`, `CoachProfileViewModel`) to enable real-time reactive filtering, slot selection, and clean Swift Testing coverage.
 - Store coaching session and booking slots in absolute UTC (`Date`) on domain models (`CoachSlot`), converting dynamically to client local `TimeZone` at the presentation layer with explicit `DateFormatter` configurations.
+- In Swift Testing with SwiftUI struct views, avoid `#expect(view != nil)` on non-optional structs; inspect `Mirror(reflecting: view)` or assert state properties directly to prevent compiler comparison warnings.
+- Persist authenticated user role (`CLIENT` or `COACH`) in Keychain via `IdentityService` and dynamically route post-login views based on role and verification state (`GET /api/v1/coaches/me`).
 
 ### Ask first
 - Introducing third-party Swift Package dependencies beyond `livekit-client-swift`.

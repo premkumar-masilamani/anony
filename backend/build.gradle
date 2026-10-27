@@ -110,6 +110,7 @@ tasks.withType(Checkstyle).configureEach {
 
 tasks.withType(Pmd).configureEach {
     outputs.upToDateWhen { false }
+    classpath = files()
     reports {
         xml.required = false
         html.required = true
