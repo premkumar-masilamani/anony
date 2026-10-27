@@ -34,7 +34,8 @@ make dev
 - Extract high-level navigation and routing state machines (e.g. flow views like `ClientRootFlowView`) into the `AnonyCore` library rather than keeping them private inside executable entry points (`ContentView`) to ensure full Swift Testing coverage.
 - Centralize all API endpoint URLs and route builders in `APIEndpoints` and `APIConfig` under `Sources/AnonyCore/Services/` and reference them across network clients and mock services rather than hardcoding endpoint strings.
 - In Swift Concurrency (`Sendable`), avoid using `NSLock` inside `async` methods; prefer immutable values, actor isolation, or `@MainActor` state wrappers.
-- Decouple directory and filter state into `@MainActor` ObservableObject view models (e.g. `CoachDiscoveryViewModel`) to enable real-time reactive filtering and clean Swift Testing coverage.
+- Decouple directory, filter, and detail view states into `@MainActor` ObservableObject view models (e.g. `CoachDiscoveryViewModel`, `CoachProfileViewModel`) to enable real-time reactive filtering, slot selection, and clean Swift Testing coverage.
+- Store coaching session and booking slots in absolute UTC (`Date`) on domain models (`CoachSlot`), converting dynamically to client local `TimeZone` at the presentation layer with explicit `DateFormatter` configurations.
 
 ### Ask first
 - Introducing third-party Swift Package dependencies beyond `livekit-client-swift`.
