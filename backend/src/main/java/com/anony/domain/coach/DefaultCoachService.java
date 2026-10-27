@@ -1,17 +1,25 @@
 package com.anony.domain.coach;
 
 import com.anony.domain.security.PasswordService;
+import com.anony.persistence.entities.AvailabilityTemplateEntity;
 import com.anony.persistence.entities.CoachDomainEntity;
 import com.anony.persistence.entities.CoachEntity;
 import com.anony.persistence.entities.DomainEntity;
+import com.anony.persistence.entities.SlotEntity;
 import com.anony.persistence.entities.UserEntity;
 import com.anony.persistence.enums.Gender;
 import com.anony.persistence.enums.UserRole;
+import com.anony.persistence.repositories.AvailabilityTemplateRepository;
 import com.anony.persistence.repositories.CoachDomainRepository;
 import com.anony.persistence.repositories.CoachRepository;
 import com.anony.persistence.repositories.DomainRepository;
+import com.anony.persistence.repositories.SlotRepository;
 import com.anony.persistence.repositories.UserRepository;
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -23,15 +31,23 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Default implementation of {@link CoachService} handling coach profile persistence,
- * credential mapping, updates, and verification state retrieval.
+ * credential mapping, updates, verification state retrieval, and availability publishing.
  */
 @Service
 public class DefaultCoachService implements CoachService {
+
+  private static final int SLOT_DURATION_THIRTY_MINUTES = 30;
+  private static final int SLOT_DURATION_SIXTY_MINUTES = 60;
+  private static final long ADVANCE_SCHEDULING_HOURS = 24L;
+  private static final long MANDATORY_MONTHLY_FREE_PLEDGE_MINUTES = 60L;
+  private static final long DEFAULT_DISCOVERY_WINDOW_DAYS = 90L;
 
   private final UserRepository userRepository;
   private final CoachRepository coachRepository;
   private final DomainRepository domainRepository;
   private final CoachDomainRepository coachDomainRepository;
+  private final AvailabilityTemplateRepository availabilityTemplateRepository;
+  private final SlotRepository slotRepository;
   private final PasswordService passwordService;
 
   /**
@@ -41,6 +57,8 @@ public class DefaultCoachService implements CoachService {
    * @param coachRepository repository for managing coach profiles
    * @param domainRepository repository for domain lookups
    * @param coachDomainRepository repository for coach-domain mappings
+   * @param availabilityTemplateRepository repository for coach availability templates
+   * @param slotRepository repository for concrete availability slots
    * @param passwordService service for hashing passwords
    */
   public DefaultCoachService(
@@ -48,11 +66,15 @@ public class DefaultCoachService implements CoachService {
       CoachRepository coachRepository,
       DomainRepository domainRepository,
       CoachDomainRepository coachDomainRepository,
+      AvailabilityTemplateRepository availabilityTemplateRepository,
+      SlotRepository slotRepository,
       PasswordService passwordService) {
     this.userRepository = userRepository;
     this.coachRepository = coachRepository;
     this.domainRepository = domainRepository;
     this.coachDomainRepository = coachDomainRepository;
+    this.availabilityTemplateRepository = availabilityTemplateRepository;
+    this.slotRepository = slotRepository;
     this.passwordService = passwordService;
   }
 
@@ -257,6 +279,240 @@ public class DefaultCoachService implements CoachService {
     } else {
       throw new IllegalArgumentException("User identifier cannot be null.");
     }
+  }
+
+  @Override
+  @Transactional
+  public List<CoachAvailabilitySlotDetails> publishAvailabilities(
+      UUID userId, List<CoachAvailabilitySlotCommand> slotCommands) {
+    if (userId != null) {
+      if (slotCommands != null && !slotCommands.isEmpty()) {
+        Optional<CoachEntity> coachOptional = coachRepository.findByUser_UserId(userId);
+
+        if (coachOptional.isPresent()) {
+          CoachEntity coachEntity = coachOptional.get();
+          Instant minimumAdvanceTimestamp =
+              Instant.now().plus(Duration.ofHours(ADVANCE_SCHEDULING_HOURS));
+
+          validateSubmittedSlots(slotCommands, minimumAdvanceTimestamp);
+
+          AvailabilityTemplateEntity availabilityTemplateEntity =
+              resolveOrCreateAvailabilityTemplate(coachEntity);
+
+          validateMonthlyFreePledgeAndExistingOverlaps(
+              availabilityTemplateEntity, slotCommands);
+
+          List<CoachAvailabilitySlotDetails> publishedSlotDetails = new ArrayList<>();
+          for (CoachAvailabilitySlotCommand slotCommand : slotCommands) {
+            SlotEntity slotEntity = new SlotEntity();
+            slotEntity.setAvailabilityTemplate(availabilityTemplateEntity);
+            slotEntity.setStartAt(slotCommand.startAt());
+            slotEntity.setEndAt(slotCommand.endAt());
+            slotEntity.setFreePledge(slotCommand.isFreePledge());
+
+            SlotEntity savedSlotEntity = slotRepository.save(slotEntity);
+            publishedSlotDetails.add(
+                toSlotDetails(savedSlotEntity, coachEntity.getCoachId(), false));
+          }
+
+          return publishedSlotDetails;
+        } else {
+          throw new IllegalStateException(
+              "Coach profile not found for user identifier: " + userId);
+        }
+      } else {
+        throw new IllegalArgumentException("At least one availability slot must be provided.");
+      }
+    } else {
+      throw new IllegalArgumentException("User identifier cannot be null.");
+    }
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<CoachAvailabilitySlotDetails> getCoachAvailabilities(
+      UUID coachId, Instant from, Instant to) {
+    if (coachId != null) {
+      Optional<CoachEntity> coachOptional = coachRepository.findById(coachId);
+
+      if (coachOptional.isPresent()) {
+        Instant effectiveFrom = from != null ? from : Instant.now();
+        Instant effectiveTo =
+            to != null
+                ? to
+                : effectiveFrom.plus(Duration.ofDays(DEFAULT_DISCOVERY_WINDOW_DAYS));
+
+        if (!effectiveTo.isBefore(effectiveFrom)) {
+          List<SlotEntity> availableSlotEntities =
+              slotRepository.findAvailableSlotsByCoachInWindow(
+                  coachId, effectiveFrom, effectiveTo);
+
+          List<CoachAvailabilitySlotDetails> availableSlots = new ArrayList<>();
+          for (SlotEntity slotEntity : availableSlotEntities) {
+            availableSlots.add(toSlotDetails(slotEntity, coachId, false));
+          }
+
+          return availableSlots;
+        } else {
+          throw new IllegalArgumentException(
+              "End timestamp must not be before start timestamp.");
+        }
+      } else {
+        throw new IllegalStateException(
+            "Coach profile not found for coach identifier: " + coachId);
+      }
+    } else {
+      throw new IllegalArgumentException("Coach identifier cannot be null.");
+    }
+  }
+
+  private void validateSubmittedSlots(
+      List<CoachAvailabilitySlotCommand> slotCommands, Instant minimumAdvanceTimestamp) {
+    int totalSlots = slotCommands.size();
+    for (int currentIndex = 0; currentIndex < totalSlots; currentIndex++) {
+      CoachAvailabilitySlotCommand currentSlot = slotCommands.get(currentIndex);
+      if (currentSlot != null
+          && currentSlot.startAt() != null
+          && currentSlot.endAt() != null
+          && currentSlot.durationMinutes() != null
+          && currentSlot.isFreePledge() != null) {
+        int durationMinutes = currentSlot.durationMinutes();
+        if (durationMinutes == SLOT_DURATION_THIRTY_MINUTES
+            || durationMinutes == SLOT_DURATION_SIXTY_MINUTES) {
+          long actualMinutes =
+              Duration.between(currentSlot.startAt(), currentSlot.endAt()).toMinutes();
+          if (actualMinutes == durationMinutes) {
+            if (!currentSlot.startAt().isBefore(minimumAdvanceTimestamp)) {
+              validateNoBatchOverlap(slotCommands, currentIndex, currentSlot);
+            } else {
+              throw new IllegalArgumentException(
+                  "Slots must be scheduled at least 24 hours in advance.");
+            }
+          } else {
+            throw new IllegalArgumentException(
+                "Slot start and end timestamps must match the specified duration in minutes.");
+          }
+        } else {
+          throw new IllegalArgumentException(
+              "Slot duration must be either 30 or 60 minutes.");
+        }
+      } else {
+        throw new IllegalArgumentException(
+            "Slot start time, end time, duration, and free pledge flag are required.");
+      }
+    }
+  }
+
+  private void validateNoBatchOverlap(
+      List<CoachAvailabilitySlotCommand> slotCommands,
+      int currentIndex,
+      CoachAvailabilitySlotCommand currentSlot) {
+    for (int previousIndex = 0; previousIndex < currentIndex; previousIndex++) {
+      CoachAvailabilitySlotCommand previousSlot = slotCommands.get(previousIndex);
+      boolean nonOverlapping =
+          !currentSlot.startAt().isBefore(previousSlot.endAt())
+              || !previousSlot.startAt().isBefore(currentSlot.endAt());
+      if (nonOverlapping) {
+        continue;
+      } else {
+        throw new IllegalArgumentException("Submitted availability slots cannot overlap.");
+      }
+    }
+  }
+
+  private AvailabilityTemplateEntity resolveOrCreateAvailabilityTemplate(
+      CoachEntity coachEntity) {
+    Optional<AvailabilityTemplateEntity> existingTemplateOptional =
+        availabilityTemplateRepository.findByCoach_CoachId(coachEntity.getCoachId());
+    if (existingTemplateOptional.isPresent()) {
+      return existingTemplateOptional.get();
+    } else {
+      AvailabilityTemplateEntity newTemplate = new AvailabilityTemplateEntity();
+      newTemplate.setCoach(coachEntity);
+      newTemplate.setSlotDurationMinutes((short) SLOT_DURATION_SIXTY_MINUTES);
+      newTemplate.setActive(true);
+      return availabilityTemplateRepository.save(newTemplate);
+    }
+  }
+
+  private void validateMonthlyFreePledgeAndExistingOverlaps(
+      AvailabilityTemplateEntity availabilityTemplateEntity,
+      List<CoachAvailabilitySlotCommand> slotCommands) {
+    List<YearMonth> distinctMonths = new ArrayList<>();
+    for (CoachAvailabilitySlotCommand slotCommand : slotCommands) {
+      YearMonth targetMonth =
+          YearMonth.from(slotCommand.startAt().atZone(ZoneOffset.UTC));
+      if (!distinctMonths.contains(targetMonth)) {
+        distinctMonths.add(targetMonth);
+      }
+    }
+
+    for (YearMonth targetMonth : distinctMonths) {
+      Instant monthStart = targetMonth.atDay(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+      Instant monthEnd =
+          targetMonth.plusMonths(1).atDay(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+
+      List<SlotEntity> existingMonthSlots =
+          slotRepository
+              .findByAvailabilityTemplate_AvailabilityTemplateIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(
+                  availabilityTemplateEntity.getAvailabilityTemplateId(), monthStart, monthEnd);
+
+      long totalFreePledgeMinutes = 0L;
+      for (SlotEntity existingSlot : existingMonthSlots) {
+        if (Boolean.TRUE.equals(existingSlot.getFreePledge())) {
+          totalFreePledgeMinutes +=
+              Duration.between(existingSlot.getStartAt(), existingSlot.getEndAt()).toMinutes();
+        }
+      }
+
+      for (CoachAvailabilitySlotCommand slotCommand : slotCommands) {
+        YearMonth slotMonth = YearMonth.from(slotCommand.startAt().atZone(ZoneOffset.UTC));
+        if (slotMonth.equals(targetMonth)) {
+          validateNoOverlapWithExistingSlots(slotCommand, existingMonthSlots);
+          if (Boolean.TRUE.equals(slotCommand.isFreePledge())) {
+            totalFreePledgeMinutes += slotCommand.durationMinutes();
+          }
+        }
+      }
+
+      if (totalFreePledgeMinutes >= MANDATORY_MONTHLY_FREE_PLEDGE_MINUTES) {
+        continue;
+      } else {
+        throw new IllegalArgumentException(
+            "Coach must commit at least 60 minutes of free pledge sessions for month "
+                + targetMonth
+                + ".");
+      }
+    }
+  }
+
+  private void validateNoOverlapWithExistingSlots(
+      CoachAvailabilitySlotCommand candidateSlot, List<SlotEntity> existingMonthSlots) {
+    for (SlotEntity existingSlot : existingMonthSlots) {
+      boolean nonOverlapping =
+          !candidateSlot.startAt().isBefore(existingSlot.getEndAt())
+              || !existingSlot.getStartAt().isBefore(candidateSlot.endAt());
+      if (nonOverlapping) {
+        continue;
+      } else {
+        throw new IllegalArgumentException(
+            "Submitted slot overlaps with an existing availability slot.");
+      }
+    }
+  }
+
+  private CoachAvailabilitySlotDetails toSlotDetails(
+      SlotEntity slotEntity, UUID coachId, boolean isBooked) {
+    int durationMinutes =
+        (int) Duration.between(slotEntity.getStartAt(), slotEntity.getEndAt()).toMinutes();
+    return new CoachAvailabilitySlotDetails(
+        slotEntity.getSlotId(),
+        coachId,
+        slotEntity.getStartAt(),
+        slotEntity.getEndAt(),
+        durationMinutes,
+        Boolean.TRUE.equals(slotEntity.getFreePledge()),
+        isBooked);
   }
 
   private boolean hasAnyCredential(boolean... credentials) {

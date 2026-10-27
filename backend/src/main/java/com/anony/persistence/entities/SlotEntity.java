@@ -37,6 +37,9 @@ public class SlotEntity {
   @Column(name = "end_at", nullable = false)
   private Instant endAt;
 
+  @Column(name = "is_free_pledge", nullable = false)
+  private Boolean freePledge;
+
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;

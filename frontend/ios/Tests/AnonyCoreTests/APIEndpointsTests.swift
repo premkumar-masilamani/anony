@@ -22,6 +22,7 @@ struct APIEndpointsTests {
         #expect(APIEndpoints.coachesRegister == "/api/v1/coaches/register")
         #expect(APIEndpoints.coachesLogin == "/api/v1/coaches/login")
         #expect(APIEndpoints.coachesMe == "/api/v1/coaches/me")
+        #expect(APIEndpoints.coachMyAvailabilities == "/api/v1/coaches/me/availabilities")
         #expect(APIEndpoints.favorites == "/api/v1/coaches/favorites")
         #expect(APIEndpoints.blindMatch == "/api/v1/sessions/blind-match")
         #expect(APIEndpoints.bookings == "/api/v1/bookings")
@@ -32,6 +33,7 @@ struct APIEndpointsTests {
         #expect(APIEndpoints.coachDetails(id: testId) == "/api/v1/coaches/11111111-2222-3333-4444-555555555555")
         #expect(APIEndpoints.coachFavorite(id: testId) == "/api/v1/coaches/11111111-2222-3333-4444-555555555555/favorite")
         #expect(APIEndpoints.coachSlots(id: testId) == "/api/v1/coaches/11111111-2222-3333-4444-555555555555/slots")
+        #expect(APIEndpoints.coachAvailabilities(id: testId) == "/api/v1/coaches/11111111-2222-3333-4444-555555555555/availabilities")
     }
 
     @Test("APIEndpoints resolves full URL correctly")

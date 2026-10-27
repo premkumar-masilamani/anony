@@ -39,6 +39,7 @@ make dev
 - In Swift Testing with SwiftUI struct views, avoid `#expect(view != nil)` on non-optional structs; inspect `Mirror(reflecting: view)` or assert state properties directly to prevent compiler comparison warnings.
 - Persist authenticated user role (`CLIENT` or `COACH`) in Keychain via `IdentityService` and dynamically route post-login views based on role and verification state (`GET /api/v1/coaches/me`).
 - In Anonymous Blind Match flows, prevent direct coach profile browsing and slot reservation; capture struggle prompts and preferred time windows, presenting confirmed session booking details directly.
+- In `@MainActor` view models (e.g. `CoachAvailabilityViewModel`), annotate shared static constants with `nonisolated` (`nonisolated public static let`) so SwiftUI view initializers can reference them as default parameter values without Swift 6 actor-isolation warnings.
 
 ### Ask first
 - Introducing third-party Swift Package dependencies beyond `livekit-client-swift`.

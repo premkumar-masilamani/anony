@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.anony.domain.auth.AuthService;
 import com.anony.domain.auth.AuthenticationResult;
+import com.anony.domain.coach.CoachAvailabilitySlotDetails;
 import com.anony.domain.coach.CoachProfileDetails;
 import com.anony.domain.coach.CoachRegistrationCommand;
 import com.anony.domain.coach.CoachService;
@@ -19,6 +20,7 @@ import com.anony.domain.coach.CoachUpdateCommand;
 import com.anony.domain.security.AuthenticatedUser;
 import com.anony.persistence.enums.UserRole;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -401,5 +403,121 @@ class CoachControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload))
         .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  @DisplayName("POST /api/v1/coaches/me/availabilities should return 201 Created for authenticated coach")
+  void testPublishAvailabilitiesSuccess() throws Exception {
+    UUID userId = UUID.randomUUID();
+    UUID coachId = UUID.randomUUID();
+    UUID slotId = UUID.randomUUID();
+    AuthenticatedUser principal =
+        new AuthenticatedUser(userId, "coach@example.com", UserRole.COACH, UUID.randomUUID());
+
+    UsernamePasswordAuthenticationToken authentication =
+        new UsernamePasswordAuthenticationToken(principal, null, List.of());
+    SecurityContextHolder.getContext().setAuthentication(authentication);
+
+    Instant startAt = Instant.parse("2027-05-10T14:00:00Z");
+    Instant endAt = startAt.plus(Duration.ofMinutes(60));
+
+    CoachAvailabilitySlotDetails slotDetails =
+        new CoachAvailabilitySlotDetails(slotId, coachId, startAt, endAt, 60, true, false);
+    when(coachService.publishAvailabilities(eq(userId), any())).thenReturn(List.of(slotDetails));
+
+    String payload =
+        """
+        {
+          "slots": [
+            {
+              "startAt": "2027-05-10T14:00:00Z",
+              "endAt": "2027-05-10T15:00:00Z",
+              "durationMinutes": 60,
+              "is_free_pledge": true
+            }
+          ]
+        }
+        """;
+
+    mockMvc
+        .perform(
+            post("/api/v1/coaches/me/availabilities")
+                .principal(authentication)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$[0].slotId").value(slotId.toString()))
+        .andExpect(jsonPath("$[0].coachId").value(coachId.toString()))
+        .andExpect(jsonPath("$[0].durationMinutes").value(60))
+        .andExpect(jsonPath("$[0].isFreePledge").value(true))
+        .andExpect(jsonPath("$[0].is_free_pledge").value(true));
+  }
+
+  @Test
+  @DisplayName("POST /api/v1/coaches/me/availabilities should return 403 Forbidden for non-coach and 401 when unauthenticated")
+  void testPublishAvailabilitiesAuthBoundaries() throws Exception {
+    String payload =
+        """
+        {
+          "slots": [
+            {
+              "startAt": "2027-05-10T14:00:00Z",
+              "endAt": "2027-05-10T15:00:00Z",
+              "durationMinutes": 60,
+              "isFreePledge": true
+            }
+          ]
+        }
+        """;
+
+    mockMvc
+        .perform(
+            post("/api/v1/coaches/me/availabilities")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+        .andExpect(status().isUnauthorized());
+
+    UUID userId = UUID.randomUUID();
+    AuthenticatedUser clientPrincipal =
+        new AuthenticatedUser(userId, "client@example.com", UserRole.CLIENT, UUID.randomUUID());
+    UsernamePasswordAuthenticationToken authentication =
+        new UsernamePasswordAuthenticationToken(clientPrincipal, null, List.of());
+    SecurityContextHolder.getContext().setAuthentication(authentication);
+
+    mockMvc
+        .perform(
+            post("/api/v1/coaches/me/availabilities")
+                .principal(authentication)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @DisplayName("GET /api/v1/coaches/{id}/availabilities should return unbooked slots filtered by UTC date range")
+  void testGetCoachAvailabilities() throws Exception {
+    UUID coachId = UUID.randomUUID();
+    UUID slotId = UUID.randomUUID();
+    Instant from = Instant.parse("2027-05-01T00:00:00Z");
+    Instant to = Instant.parse("2027-05-31T23:59:59Z");
+    Instant slotStart = Instant.parse("2027-05-10T14:00:00Z");
+    Instant slotEnd = Instant.parse("2027-05-10T15:00:00Z");
+
+    CoachAvailabilitySlotDetails slotDetails =
+        new CoachAvailabilitySlotDetails(slotId, coachId, slotStart, slotEnd, 60, true, false);
+    when(coachService.getCoachAvailabilities(coachId, from, to)).thenReturn(List.of(slotDetails));
+
+    mockMvc
+        .perform(
+            get("/api/v1/coaches/" + coachId + "/availabilities")
+                .param("from", "2027-05-01T00:00:00Z")
+                .param("to", "2027-05-31T23:59:59Z")
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].slotId").value(slotId.toString()))
+        .andExpect(jsonPath("$[0].coachId").value(coachId.toString()))
+        .andExpect(jsonPath("$[0].durationMinutes").value(60))
+        .andExpect(jsonPath("$[0].isFreePledge").value(true))
+        .andExpect(jsonPath("$[0].isBooked").value(false));
   }
 }

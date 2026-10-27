@@ -4,11 +4,16 @@ import com.anony.api.dtos.auth.ErrorResponse;
 import com.anony.api.dtos.auth.LoginRequest;
 import com.anony.api.dtos.auth.LoginResponse;
 import com.anony.api.dtos.auth.UserSummaryDto;
+import com.anony.api.dtos.coach.CoachAvailabilityPublishRequest;
+import com.anony.api.dtos.coach.CoachAvailabilitySlotDto;
+import com.anony.api.dtos.coach.CoachAvailabilitySlotRequest;
 import com.anony.api.dtos.coach.CoachProfileDto;
 import com.anony.api.dtos.coach.CoachRegistrationRequest;
 import com.anony.api.dtos.coach.CoachUpdateRequest;
 import com.anony.domain.auth.AuthService;
 import com.anony.domain.auth.AuthenticationResult;
+import com.anony.domain.coach.CoachAvailabilitySlotCommand;
+import com.anony.domain.coach.CoachAvailabilitySlotDetails;
 import com.anony.domain.coach.CoachProfileDetails;
 import com.anony.domain.coach.CoachRegistrationCommand;
 import com.anony.domain.coach.CoachService;
@@ -16,20 +21,27 @@ import com.anony.domain.coach.CoachUpdateCommand;
 import com.anony.domain.security.AuthenticatedUser;
 import com.anony.persistence.enums.UserRole;
 import jakarta.validation.Valid;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * REST controller managing coach registration, authentication, updates, and profile verification status.
+ * REST controller managing coach registration, authentication, updates, profile verification status,
+ * and availability slot management.
  */
 @RestController
 @RequestMapping("/api/v1/coaches")
@@ -41,7 +53,7 @@ public class CoachController {
   /**
    * Constructs coach controller with required services.
    *
-   * @param coachService service managing coach profiles
+   * @param coachService service managing coach profiles and availabilities
    * @param authService service managing authentication sessions
    */
   public CoachController(CoachService coachService, AuthService authService) {
@@ -177,6 +189,59 @@ public class CoachController {
   }
 
   /**
+   * Publishes availability slots for the authenticated coach after enforcing the 24-hour
+   * advance rule and mandatory 1-hour monthly free session pledge quota.
+   *
+   * @param authenticatedUser authenticated security principal
+   * @param publishRequest batch request containing availability slots
+   * @return created list of published availability slot DTOs
+   */
+  @PostMapping("/me/availabilities")
+  public ResponseEntity<List<CoachAvailabilitySlotDto>> publishAvailabilities(
+      @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+      @Valid @RequestBody CoachAvailabilityPublishRequest publishRequest) {
+    if (authenticatedUser != null) {
+      if (authenticatedUser.role() == UserRole.COACH) {
+        List<CoachAvailabilitySlotCommand> slotCommands = new ArrayList<>();
+        for (CoachAvailabilitySlotRequest slotRequest : publishRequest.slots()) {
+          slotCommands.add(
+              new CoachAvailabilitySlotCommand(
+                  slotRequest.startAt(),
+                  slotRequest.endAt(),
+                  slotRequest.durationMinutes(),
+                  slotRequest.isFreePledge()));
+        }
+
+        List<CoachAvailabilitySlotDetails> publishedSlots =
+            coachService.publishAvailabilities(authenticatedUser.userId(), slotCommands);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toSlotDtos(publishedSlots));
+      } else {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+      }
+    } else {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+  }
+
+  /**
+   * Retrieves unbooked availability slots for a coach within an optional UTC date range.
+   *
+   * @param coachId unique coach identifier
+   * @param from optional inclusive UTC start timestamp
+   * @param to optional inclusive UTC end timestamp
+   * @return list of unbooked availability slots
+   */
+  @GetMapping("/{id}/availabilities")
+  public ResponseEntity<List<CoachAvailabilitySlotDto>> getCoachAvailabilities(
+      @PathVariable("id") UUID coachId,
+      @RequestParam(name = "from", required = false) Instant from,
+      @RequestParam(name = "to", required = false) Instant to) {
+    List<CoachAvailabilitySlotDetails> availableSlots =
+        coachService.getCoachAvailabilities(coachId, from, to);
+    return ResponseEntity.ok(toSlotDtos(availableSlots));
+  }
+
+  /**
    * Handles invalid argument exceptions returning 400 Bad Request.
    *
    * @param illegalArgumentException exception caught
@@ -213,6 +278,23 @@ public class CoachController {
       BadCredentialsException badCredentialsException) {
     return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
         .body(new ErrorResponse(badCredentialsException.getMessage()));
+  }
+
+  private List<CoachAvailabilitySlotDto> toSlotDtos(
+      List<CoachAvailabilitySlotDetails> slotDetailsList) {
+    List<CoachAvailabilitySlotDto> slotDtos = new ArrayList<>();
+    for (CoachAvailabilitySlotDetails slotDetails : slotDetailsList) {
+      slotDtos.add(
+          new CoachAvailabilitySlotDto(
+              slotDetails.slotId(),
+              slotDetails.coachId(),
+              slotDetails.startAt(),
+              slotDetails.endAt(),
+              slotDetails.durationMinutes(),
+              slotDetails.isFreePledge(),
+              slotDetails.isBooked()));
+    }
+    return slotDtos;
   }
 
   private CoachProfileDto toDto(CoachProfileDetails details) {

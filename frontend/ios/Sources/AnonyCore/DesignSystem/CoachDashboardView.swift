@@ -9,6 +9,7 @@ public struct CoachDashboardView: View {
     @State private var coachProfile: CoachProfileResponse?
     @State private var isLoading: Bool = true
     @State private var errorMessage: String? = nil
+    @StateObject private var availabilityViewModel: CoachAvailabilityViewModel
 
     public init(
         coachEmail: String? = nil,
@@ -18,6 +19,9 @@ public struct CoachDashboardView: View {
         self.coachEmail = coachEmail
         self.authService = authService
         self.onSignOut = onSignOut
+        self._availabilityViewModel = StateObject(
+            wrappedValue: CoachAvailabilityViewModel(authService: authService)
+        )
     }
 
     public var body: some View {
@@ -142,6 +146,14 @@ public struct CoachDashboardView: View {
                             }
                             .padding(16)
                         }
+                        .padding(.horizontal, 20)
+
+                        // Availability Calendar & Monthly Free Session Pledge Manager (Issue #20)
+                        CoachAvailabilityManagerView(
+                            viewModel: availabilityViewModel,
+                            coachId: profile.coachId,
+                            coachTimezoneIdentifier: profile.timezone
+                        )
                         .padding(.horizontal, 20)
 
                         // Coaching Schedule / Availability Section

@@ -12,18 +12,25 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.anony.domain.security.PasswordService;
+import com.anony.persistence.entities.AvailabilityTemplateEntity;
 import com.anony.persistence.entities.CoachDomainEntity;
 import com.anony.persistence.entities.CoachEntity;
 import com.anony.persistence.entities.DomainEntity;
+import com.anony.persistence.entities.SlotEntity;
 import com.anony.persistence.entities.UserEntity;
 import com.anony.persistence.enums.Gender;
 import com.anony.persistence.enums.UserRole;
+import com.anony.persistence.repositories.AvailabilityTemplateRepository;
 import com.anony.persistence.repositories.CoachDomainRepository;
 import com.anony.persistence.repositories.CoachRepository;
 import com.anony.persistence.repositories.DomainRepository;
+import com.anony.persistence.repositories.SlotRepository;
 import com.anony.persistence.repositories.UserRepository;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -50,6 +57,12 @@ class DefaultCoachServiceTest {
   private CoachDomainRepository coachDomainRepository;
 
   @Mock
+  private AvailabilityTemplateRepository availabilityTemplateRepository;
+
+  @Mock
+  private SlotRepository slotRepository;
+
+  @Mock
   private PasswordService passwordService;
 
   private DefaultCoachService coachService;
@@ -62,6 +75,8 @@ class DefaultCoachServiceTest {
             coachRepository,
             domainRepository,
             coachDomainRepository,
+            availabilityTemplateRepository,
+            slotRepository,
             passwordService);
   }
 
@@ -103,8 +118,20 @@ class DefaultCoachServiceTest {
     domainEntity.setDomainId(UUID.randomUUID());
     domainEntity.setCode("CAREER");
     domainEntity.setName("Career Development");
+    String longDomainName = "VERY_LONG_CUSTOM_COACHING_DOMAIN_SPECIALIZATION_NAME";
     when(domainRepository.findByCodeIgnoreCase("CAREER")).thenReturn(Optional.of(domainEntity));
     when(domainRepository.findByCodeIgnoreCase("UNKNOWN")).thenReturn(Optional.empty());
+    when(domainRepository.findByCodeIgnoreCase(longDomainName)).thenReturn(Optional.empty());
+    when(domainRepository.save(any(DomainEntity.class)))
+        .thenAnswer(
+            invocation -> {
+              DomainEntity inputDomain = invocation.getArgument(0);
+              if ("UNKNOWN".equals(inputDomain.getCode())) {
+                return null;
+              } else {
+                return inputDomain;
+              }
+            });
 
     CoachRegistrationCommand command =
         new CoachRegistrationCommand(
@@ -123,7 +150,7 @@ class DefaultCoachServiceTest {
             false,
             false,
             "ICF-12345",
-            List.of("CAREER", "UNKNOWN", "   "),
+            List.of("CAREER", "UNKNOWN", longDomainName, "   "),
             new BigDecimal("150.00"));
 
     CoachProfileDetails details = coachService.registerCoach(command);
@@ -550,5 +577,324 @@ class DefaultCoachServiceTest {
     when(coachRepository.findByUser_UserId(unknownUserId)).thenReturn(Optional.empty());
     assertThrows(
         IllegalStateException.class, () -> coachService.getCoachProfileByUserId(unknownUserId));
+  }
+
+  @Test
+  @DisplayName("publishAvailabilities should persist 60-min free pledge and paid slots when rules pass")
+  void testPublishAvailabilitiesSuccessWithNewTemplate() {
+    final UUID userId = UUID.randomUUID();
+    final UUID coachId = UUID.randomUUID();
+    final UUID templateId = UUID.randomUUID();
+
+    CoachEntity coachEntity = new CoachEntity();
+    coachEntity.setCoachId(coachId);
+    when(coachRepository.findByUser_UserId(userId)).thenReturn(Optional.of(coachEntity));
+    when(availabilityTemplateRepository.findByCoach_CoachId(coachId)).thenReturn(Optional.empty());
+
+    AvailabilityTemplateEntity savedTemplate = new AvailabilityTemplateEntity();
+    savedTemplate.setAvailabilityTemplateId(templateId);
+    savedTemplate.setCoach(coachEntity);
+    savedTemplate.setSlotDurationMinutes((short) 60);
+    savedTemplate.setActive(true);
+    when(availabilityTemplateRepository.save(any(AvailabilityTemplateEntity.class)))
+        .thenReturn(savedTemplate);
+
+    when(slotRepository
+            .findByAvailabilityTemplate_AvailabilityTemplateIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(
+                any(UUID.class), any(Instant.class), any(Instant.class)))
+        .thenReturn(List.of());
+
+    when(slotRepository.save(any(SlotEntity.class)))
+        .thenAnswer(
+            invocation -> {
+              SlotEntity inputSlot = invocation.getArgument(0);
+              SlotEntity persistedSlot = new SlotEntity();
+              persistedSlot.setSlotId(UUID.randomUUID());
+              persistedSlot.setAvailabilityTemplate(inputSlot.getAvailabilityTemplate());
+              persistedSlot.setStartAt(inputSlot.getStartAt());
+              persistedSlot.setEndAt(inputSlot.getEndAt());
+              persistedSlot.setFreePledge(inputSlot.getFreePledge());
+              return persistedSlot;
+            });
+
+    Instant baseStart = Instant.now().plus(Duration.ofHours(48)).truncatedTo(ChronoUnit.MINUTES);
+    CoachAvailabilitySlotCommand freeSlotCommand =
+        new CoachAvailabilitySlotCommand(
+            baseStart, baseStart.plus(Duration.ofMinutes(60)), 60, true);
+    CoachAvailabilitySlotCommand paidSlotCommand =
+        new CoachAvailabilitySlotCommand(
+            baseStart.plus(Duration.ofHours(2)),
+            baseStart.plus(Duration.ofHours(2)).plus(Duration.ofMinutes(30)),
+            30,
+            false);
+
+    List<CoachAvailabilitySlotDetails> published =
+        coachService.publishAvailabilities(userId, List.of(freeSlotCommand, paidSlotCommand));
+
+    assertEquals(2, published.size());
+    assertTrue(published.get(0).isFreePledge());
+    assertEquals(60, published.get(0).durationMinutes());
+    assertFalse(published.get(1).isFreePledge());
+    assertEquals(30, published.get(1).durationMinutes());
+  }
+
+  @Test
+  @DisplayName("publishAvailabilities should succeed with two 30-min free pledge slots or existing monthly pledge")
+  void testPublishAvailabilitiesWithExistingTemplateAndExistingPledgeSlots() {
+    final UUID userId = UUID.randomUUID();
+    final UUID coachId = UUID.randomUUID();
+    final UUID templateId = UUID.randomUUID();
+
+    CoachEntity coachEntity = new CoachEntity();
+    coachEntity.setCoachId(coachId);
+    when(coachRepository.findByUser_UserId(userId)).thenReturn(Optional.of(coachEntity));
+
+    AvailabilityTemplateEntity existingTemplate = new AvailabilityTemplateEntity();
+    existingTemplate.setAvailabilityTemplateId(templateId);
+    existingTemplate.setCoach(coachEntity);
+    existingTemplate.setSlotDurationMinutes((short) 60);
+    existingTemplate.setActive(true);
+    when(availabilityTemplateRepository.findByCoach_CoachId(coachId))
+        .thenReturn(Optional.of(existingTemplate));
+
+    Instant baseStart = Instant.now().plus(Duration.ofHours(36)).truncatedTo(ChronoUnit.MINUTES);
+
+    SlotEntity existingFreeSlot = new SlotEntity();
+    existingFreeSlot.setSlotId(UUID.randomUUID());
+    existingFreeSlot.setStartAt(baseStart.minus(Duration.ofHours(4)));
+    existingFreeSlot.setEndAt(baseStart.minus(Duration.ofHours(4)).plus(Duration.ofMinutes(30)));
+    existingFreeSlot.setFreePledge(true);
+
+    SlotEntity existingPaidSlotAfter = new SlotEntity();
+    existingPaidSlotAfter.setSlotId(UUID.randomUUID());
+    existingPaidSlotAfter.setStartAt(baseStart.plus(Duration.ofHours(5)));
+    existingPaidSlotAfter.setEndAt(
+        baseStart.plus(Duration.ofHours(5)).plus(Duration.ofMinutes(30)));
+    existingPaidSlotAfter.setFreePledge(false);
+
+    when(slotRepository
+            .findByAvailabilityTemplate_AvailabilityTemplateIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(
+                any(UUID.class), any(Instant.class), any(Instant.class)))
+        .thenReturn(List.of(existingFreeSlot, existingPaidSlotAfter));
+
+    when(slotRepository.save(any(SlotEntity.class)))
+        .thenAnswer(
+            invocation -> {
+              SlotEntity inputSlot = invocation.getArgument(0);
+              inputSlot.setSlotId(UUID.randomUUID());
+              return inputSlot;
+            });
+
+    CoachAvailabilitySlotCommand secondThirtyMinFreeSlot =
+        new CoachAvailabilitySlotCommand(
+            baseStart, baseStart.plus(Duration.ofMinutes(30)), 30, true);
+    CoachAvailabilitySlotCommand earlierNonOverlappingSlot =
+        new CoachAvailabilitySlotCommand(
+            baseStart.minus(Duration.ofHours(2)),
+            baseStart.minus(Duration.ofHours(2)).plus(Duration.ofMinutes(30)),
+            30,
+            false);
+    Instant nextMonthStart = baseStart.plus(Duration.ofDays(35));
+    CoachAvailabilitySlotCommand nextMonthFreeSlot =
+        new CoachAvailabilitySlotCommand(
+            nextMonthStart, nextMonthStart.plus(Duration.ofMinutes(60)), 60, true);
+
+    List<CoachAvailabilitySlotDetails> result =
+        coachService.publishAvailabilities(
+            userId,
+            List.of(secondThirtyMinFreeSlot, earlierNonOverlappingSlot, nextMonthFreeSlot));
+
+    assertEquals(3, result.size());
+  }
+
+  @Test
+  @DisplayName("publishAvailabilities should reject invalid inputs, 24h rule violations, overlaps, and unmet monthly free pledge")
+  void testPublishAvailabilitiesValidationFailures() {
+    final UUID userId = UUID.randomUUID();
+    final UUID coachId = UUID.randomUUID();
+    final UUID templateId = UUID.randomUUID();
+
+    Instant validStart = Instant.now().plus(Duration.ofHours(48)).truncatedTo(ChronoUnit.MINUTES);
+    CoachAvailabilitySlotCommand validSlot =
+        new CoachAvailabilitySlotCommand(
+            validStart, validStart.plus(Duration.ofMinutes(60)), 60, true);
+
+    // Null userId
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> coachService.publishAvailabilities(null, List.of(validSlot)));
+
+    // Null or empty slot list
+    assertThrows(
+        IllegalArgumentException.class, () -> coachService.publishAvailabilities(userId, null));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> coachService.publishAvailabilities(userId, List.of()));
+
+    // Coach not found
+    when(coachRepository.findByUser_UserId(userId)).thenReturn(Optional.empty());
+    assertThrows(
+        IllegalStateException.class,
+        () -> coachService.publishAvailabilities(userId, List.of(validSlot)));
+
+    CoachEntity coachEntity = new CoachEntity();
+    coachEntity.setCoachId(coachId);
+    when(coachRepository.findByUser_UserId(userId)).thenReturn(Optional.of(coachEntity));
+
+    // Null elements / fields in slot command
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> coachService.publishAvailabilities(userId, Arrays.asList((CoachAvailabilitySlotCommand) null)));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            coachService.publishAvailabilities(
+                userId, List.of(new CoachAvailabilitySlotCommand(null, validStart, 60, true))));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            coachService.publishAvailabilities(
+                userId, List.of(new CoachAvailabilitySlotCommand(validStart, null, 60, true))));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            coachService.publishAvailabilities(
+                userId,
+                List.of(new CoachAvailabilitySlotCommand(validStart, validStart, null, true))));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            coachService.publishAvailabilities(
+                userId,
+                List.of(new CoachAvailabilitySlotCommand(validStart, validStart, 60, null))));
+
+    // Invalid duration (45 min)
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            coachService.publishAvailabilities(
+                userId,
+                List.of(
+                    new CoachAvailabilitySlotCommand(
+                        validStart, validStart.plus(Duration.ofMinutes(45)), 45, true))));
+
+    // Duration mismatch between timestamps and durationMinutes
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            coachService.publishAvailabilities(
+                userId,
+                List.of(
+                    new CoachAvailabilitySlotCommand(
+                        validStart, validStart.plus(Duration.ofMinutes(30)), 60, true))));
+
+    // Less than 24 hours in advance
+    Instant tooSoonStart = Instant.now().plus(Duration.ofHours(12));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            coachService.publishAvailabilities(
+                userId,
+                List.of(
+                    new CoachAvailabilitySlotCommand(
+                        tooSoonStart, tooSoonStart.plus(Duration.ofMinutes(60)), 60, true))));
+
+    // Batch overlap
+    CoachAvailabilitySlotCommand overlappingSlot =
+        new CoachAvailabilitySlotCommand(
+            validStart.plus(Duration.ofMinutes(30)),
+            validStart.plus(Duration.ofMinutes(90)),
+            60,
+            true);
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> coachService.publishAvailabilities(userId, List.of(validSlot, overlappingSlot)));
+
+    AvailabilityTemplateEntity existingTemplate = new AvailabilityTemplateEntity();
+    existingTemplate.setAvailabilityTemplateId(templateId);
+    existingTemplate.setCoach(coachEntity);
+    when(availabilityTemplateRepository.findByCoach_CoachId(coachId))
+        .thenReturn(Optional.of(existingTemplate));
+
+    // Unmet 1-hour monthly free session pledge (only 30 min free pledge in month)
+    when(slotRepository
+            .findByAvailabilityTemplate_AvailabilityTemplateIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(
+                any(UUID.class), any(Instant.class), any(Instant.class)))
+        .thenReturn(List.of());
+
+    CoachAvailabilitySlotCommand thirtyMinFreeOnly =
+        new CoachAvailabilitySlotCommand(
+            validStart, validStart.plus(Duration.ofMinutes(30)), 30, true);
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> coachService.publishAvailabilities(userId, List.of(thirtyMinFreeOnly)));
+
+    // Overlap with existing persisted slot
+    SlotEntity persistedSlot = new SlotEntity();
+    persistedSlot.setSlotId(UUID.randomUUID());
+    persistedSlot.setStartAt(validStart);
+    persistedSlot.setEndAt(validStart.plus(Duration.ofMinutes(60)));
+    persistedSlot.setFreePledge(true);
+    when(slotRepository
+            .findByAvailabilityTemplate_AvailabilityTemplateIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(
+                any(UUID.class), any(Instant.class), any(Instant.class)))
+        .thenReturn(List.of(persistedSlot));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> coachService.publishAvailabilities(userId, List.of(validSlot)));
+  }
+
+  @Test
+  @DisplayName("getCoachAvailabilities should return unbooked slots and validate parameters")
+  void testGetCoachAvailabilities() {
+    UUID coachId = UUID.randomUUID();
+    CoachEntity coachEntity = new CoachEntity();
+    coachEntity.setCoachId(coachId);
+
+    // Null coachId
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> coachService.getCoachAvailabilities(null, null, null));
+
+    // Coach not found
+    when(coachRepository.findById(coachId)).thenReturn(Optional.empty());
+    assertThrows(
+        IllegalStateException.class,
+        () -> coachService.getCoachAvailabilities(coachId, null, null));
+
+    when(coachRepository.findById(coachId)).thenReturn(Optional.of(coachEntity));
+
+    // Invalid date range (to < from)
+    Instant from = Instant.now().plus(Duration.ofDays(2));
+    Instant toBeforeFrom = from.minus(Duration.ofHours(1));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> coachService.getCoachAvailabilities(coachId, from, toBeforeFrom));
+
+    // Valid query with explicit from & to
+    SlotEntity slotEntity = new SlotEntity();
+    slotEntity.setSlotId(UUID.randomUUID());
+    slotEntity.setStartAt(from.plus(Duration.ofHours(1)));
+    slotEntity.setEndAt(from.plus(Duration.ofHours(2)));
+    slotEntity.setFreePledge(true);
+
+    Instant to = from.plus(Duration.ofDays(7));
+    when(slotRepository.findAvailableSlotsByCoachInWindow(coachId, from, to))
+        .thenReturn(List.of(slotEntity));
+
+    List<CoachAvailabilitySlotDetails> explicitRangeResult =
+        coachService.getCoachAvailabilities(coachId, from, to);
+    assertEquals(1, explicitRangeResult.size());
+    assertEquals(60, explicitRangeResult.get(0).durationMinutes());
+    assertTrue(explicitRangeResult.get(0).isFreePledge());
+
+    // Valid query with null from & to (uses default window)
+    when(slotRepository.findAvailableSlotsByCoachInWindow(
+            any(UUID.class), any(Instant.class), any(Instant.class)))
+        .thenReturn(List.of(slotEntity));
+    List<CoachAvailabilitySlotDetails> openRangeResult =
+        coachService.getCoachAvailabilities(coachId, null, null);
+    assertEquals(1, openRangeResult.size());
   }
 }
