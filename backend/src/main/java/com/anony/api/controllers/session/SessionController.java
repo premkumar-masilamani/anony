@@ -7,9 +7,11 @@ import com.anony.api.dtos.session.QuotaExceededErrorResponse;
 import com.anony.domain.security.AuthenticatedUser;
 import com.anony.domain.session.BlindMatchCommand;
 import com.anony.domain.session.BlindMatchResult;
+import com.anony.domain.session.BookingType;
 import com.anony.domain.session.NoAvailableSlotsException;
 import com.anony.domain.session.QuotaExceededException;
 import com.anony.domain.session.SessionService;
+import com.anony.domain.session.SlotAlreadyBookedException;
 import com.anony.persistence.enums.UserRole;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -24,7 +26,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * REST controller managing coaching sessions, bookings, and automated pro-bono blind matches.
+ * REST controller managing unified coaching session bookings ({@code POST /api/v1/sessions}),
+ * supporting both automated pro-bono blind matches and direct paid coach/slot reservations.
  */
 @RestController
 @RequestMapping("/api/v1/sessions")
@@ -44,33 +47,48 @@ public class SessionController {
   }
 
   /**
-   * Schedules an automated pro-bono blind match session for an authenticated client.
+   * Creates a coaching session (either an automated pro-bono blind match or a paid coach/slot
+   * reservation) for an authenticated client via the unified RESTful {@code POST /api/v1/sessions}
+   * endpoint.
    *
    * @param authenticatedUser security principal representing the authenticated client
-   * @param blindMatchRequest requested session parameters including struggle prompt and time preferences
+   * @param blindMatchRequest unified session booking parameters
    * @return confirmed session booking response
    */
-  @PostMapping("/blind-match")
+  @PostMapping
   public ResponseEntity<BlindMatchResponse> scheduleBlindMatch(
       @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
       @Valid @RequestBody BlindMatchRequest blindMatchRequest) {
     if (authenticatedUser != null) {
       if (authenticatedUser.role() == UserRole.CLIENT) {
         if (blindMatchRequest != null) {
+          BookingType resolvedBookingType = resolveBookingType(blindMatchRequest);
           LOGGER.info(
-              "Received blind-match request from userId={} (preferredDate={}, preferredTimeWindow={})",
+              "Received POST /api/v1/sessions request from userId={}"
+                  + " (bookingType={}, coachId={}, slotId={}, domainCode={}, preferredDate={}, preferredTimeWindow={})",
               authenticatedUser.userId(),
+              resolvedBookingType,
+              blindMatchRequest.coachId(),
+              blindMatchRequest.slotId(),
+              blindMatchRequest.domainCode(),
               blindMatchRequest.preferredDate(),
               blindMatchRequest.preferredTimeWindow());
-          BlindMatchCommand command = new BlindMatchCommand(
-              authenticatedUser.userId(),
-              blindMatchRequest.strugglePrompt(),
-              blindMatchRequest.preferredTimeWindow(),
-              blindMatchRequest.preferredDate());
+
+          BlindMatchCommand command =
+              new BlindMatchCommand(
+                  authenticatedUser.userId(),
+                  resolvedBookingType,
+                  blindMatchRequest.coachId(),
+                  blindMatchRequest.slotId(),
+                  blindMatchRequest.domainCode(),
+                  blindMatchRequest.strugglePrompt(),
+                  blindMatchRequest.preferredTimeWindow(),
+                  blindMatchRequest.preferredDate());
 
           BlindMatchResult matchResult = sessionService.scheduleBlindMatch(command);
           LOGGER.info(
-              "Scheduled blind-match sessionId={} for userId={} with coachAlias={} at {}",
+              "Scheduled {} sessionId={} for userId={} with coachAlias={} at {}",
+              matchResult.bookingType(),
               matchResult.sessionId(),
               authenticatedUser.userId(),
               matchResult.coachAlias(),
@@ -79,19 +97,19 @@ public class SessionController {
           return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(matchResult));
         } else {
           LOGGER.warn(
-              "Rejected null blind-match request payload from userId={}",
+              "Rejected null session booking request payload from userId={}",
               authenticatedUser.userId());
           return ResponseEntity.badRequest().build();
         }
       } else {
         LOGGER.warn(
-            "Forbidden /api/v1/sessions/blind-match request from non-client userId={} (role={})",
+            "Forbidden POST /api/v1/sessions request from non-client userId={} (role={})",
             authenticatedUser.userId(),
             authenticatedUser.role());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
       }
     } else {
-      LOGGER.warn("Unauthorized /api/v1/sessions/blind-match request without principal.");
+      LOGGER.warn("Unauthorized POST /api/v1/sessions request without principal.");
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
   }
@@ -111,16 +129,33 @@ public class SessionController {
         quotaExceededException.getFreeSessionsUsed(),
         quotaExceededException.getMaxFreeSessions(),
         quotaExceededException.getDaysRemaining());
-    QuotaExceededErrorResponse errorPayload = new QuotaExceededErrorResponse(
-        "FREE_SESSION_QUOTA_EXCEEDED",
-        quotaExceededException.getReason(),
-        quotaExceededException.getMessage(),
-        quotaExceededException.getDaysRemaining(),
-        quotaExceededException.getFreeSessionsUsed(),
-        quotaExceededException.getMaxFreeSessions(),
-        quotaExceededException.getSuggestedAction());
+    QuotaExceededErrorResponse errorPayload =
+        new QuotaExceededErrorResponse(
+            "FREE_SESSION_QUOTA_EXCEEDED",
+            quotaExceededException.getReason(),
+            quotaExceededException.getMessage(),
+            quotaExceededException.getDaysRemaining(),
+            quotaExceededException.getFreeSessionsUsed(),
+            quotaExceededException.getMaxFreeSessions(),
+            quotaExceededException.getSuggestedAction());
 
     return ResponseEntity.status(HttpStatus.CONFLICT).body(errorPayload);
+  }
+
+  /**
+   * Translates slot lock contention or already-booked slot exceptions into HTTP 409 Conflict.
+   *
+   * @param slotAlreadyBookedException exception caught when slot is already booked
+   * @return error response
+   */
+  @ExceptionHandler(SlotAlreadyBookedException.class)
+  public ResponseEntity<ErrorResponse> handleSlotAlreadyBooked(
+      SlotAlreadyBookedException slotAlreadyBookedException) {
+    LOGGER.warn(
+        "Returning 409 Conflict from SessionController: {}",
+        slotAlreadyBookedException.getMessage());
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+        .body(new ErrorResponse(slotAlreadyBookedException.getMessage()));
   }
 
   /**
@@ -132,7 +167,9 @@ public class SessionController {
   @ExceptionHandler(NoAvailableSlotsException.class)
   public ResponseEntity<ErrorResponse> handleNoAvailableSlots(
       NoAvailableSlotsException noAvailableSlotsException) {
-    LOGGER.warn("Returning 404 Not Found from SessionController: {}", noAvailableSlotsException.getMessage());
+    LOGGER.warn(
+        "Returning 404 Not Found from SessionController: {}",
+        noAvailableSlotsException.getMessage());
     return ResponseEntity.status(HttpStatus.NOT_FOUND)
         .body(new ErrorResponse(noAvailableSlotsException.getMessage()));
   }
@@ -146,7 +183,9 @@ public class SessionController {
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<ErrorResponse> handleIllegalArgument(
       IllegalArgumentException illegalArgumentException) {
-    LOGGER.warn("Returning 400 Bad Request from SessionController: {}", illegalArgumentException.getMessage());
+    LOGGER.warn(
+        "Returning 400 Bad Request from SessionController: {}",
+        illegalArgumentException.getMessage());
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
         .body(new ErrorResponse(illegalArgumentException.getMessage()));
   }
@@ -160,19 +199,43 @@ public class SessionController {
   @ExceptionHandler(IllegalStateException.class)
   public ResponseEntity<ErrorResponse> handleIllegalState(
       IllegalStateException illegalStateException) {
-    LOGGER.warn("Returning 404 Not Found from SessionController: {}", illegalStateException.getMessage());
+    LOGGER.warn(
+        "Returning 404 Not Found from SessionController: {}",
+        illegalStateException.getMessage());
     return ResponseEntity.status(HttpStatus.NOT_FOUND)
         .body(new ErrorResponse(illegalStateException.getMessage()));
+  }
+
+  private BookingType resolveBookingType(BlindMatchRequest blindMatchRequest) {
+    if (blindMatchRequest.bookingType() != null) {
+      return blindMatchRequest.bookingType();
+    } else if (blindMatchRequest.isProBono() != null) {
+      if (Boolean.TRUE.equals(blindMatchRequest.isProBono())) {
+        return BookingType.FREE;
+      } else {
+        return BookingType.PAID;
+      }
+    } else if (blindMatchRequest.slotId() != null || blindMatchRequest.coachId() != null) {
+      return BookingType.PAID;
+    } else {
+      return BookingType.FREE;
+    }
   }
 
   private BlindMatchResponse toResponse(BlindMatchResult matchResult) {
     return new BlindMatchResponse(
         matchResult.sessionId(),
+        matchResult.slotId(),
+        matchResult.coachId(),
         matchResult.coachAlias(),
         matchResult.coachIcfLevel(),
+        matchResult.domainCode(),
         matchResult.topic(),
         matchResult.scheduledTime(),
+        matchResult.endTime(),
+        matchResult.bookingType(),
         matchResult.status(),
+        matchResult.awaitingCheckout(),
         matchResult.isProBono(),
         matchResult.freeSessionsUsed(),
         matchResult.maxFreeSessions(),
