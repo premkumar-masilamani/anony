@@ -9,6 +9,8 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class DefaultAuthService implements AuthService {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(DefaultAuthService.class);
 
   private final UserRepository userRepository;
   private final PasswordService passwordService;
@@ -47,6 +51,7 @@ public class DefaultAuthService implements AuthService {
   @Transactional
   public AuthenticationResult authenticate(String email, String rawPassword) {
     if (StringUtils.isNotBlank(email) && StringUtils.isNotBlank(rawPassword)) {
+      LOGGER.debug("Authenticating user with email={}", email);
       Optional<UserEntity> userOptional = userRepository.findByEmailIgnoreCase(email);
 
       if (userOptional.isPresent()) {
@@ -68,6 +73,13 @@ public class DefaultAuthService implements AuthService {
                   userEntity.getRole(),
                   activeTokenIdentifier);
 
+          LOGGER.info(
+              "Authenticated userId={} (email={}, role={}) with active tokenId={}",
+              userEntity.getUserId(),
+              userEntity.getEmail(),
+              userEntity.getRole(),
+              activeTokenIdentifier);
+
           return new AuthenticationResult(
               userEntity.getUserId(),
               userEntity.getEmail(),
@@ -75,12 +87,15 @@ public class DefaultAuthService implements AuthService {
               issuedBearerToken,
               tokenProperties.getExpirationSeconds());
         } else {
+          LOGGER.warn("Authentication failed: password mismatch for email={}", email);
           throw new BadCredentialsException("Invalid email or password.");
         }
       } else {
+        LOGGER.warn("Authentication failed: no user account found for email={}", email);
         throw new BadCredentialsException("Invalid email or password.");
       }
     } else {
+      LOGGER.warn("Authentication rejected: email or password was blank.");
       throw new IllegalArgumentException("Email and password cannot be blank.");
     }
   }
@@ -89,6 +104,7 @@ public class DefaultAuthService implements AuthService {
   @Transactional
   public void logout(UUID userId) {
     if (userId != null) {
+      LOGGER.debug("Processing session logout for userId={}", userId);
       Optional<UserEntity> userOptional = userRepository.findById(userId);
 
       if (userOptional.isPresent()) {
@@ -96,10 +112,13 @@ public class DefaultAuthService implements AuthService {
         userEntity.setTokenId(null);
         userEntity.setTokenExpiresAt(null);
         userRepository.save(userEntity);
+        LOGGER.info("Terminated active session for userId={}", userId);
       } else {
+        LOGGER.warn("Logout failed: user not found for userId={}", userId);
         throw new IllegalStateException("User not found for session termination.");
       }
     } else {
+      LOGGER.warn("Logout rejected: userId was null.");
       throw new IllegalArgumentException("User identifier cannot be null.");
     }
   }

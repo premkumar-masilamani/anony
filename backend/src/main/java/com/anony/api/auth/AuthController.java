@@ -12,6 +12,8 @@ import com.anony.domain.client.ClientRegistrationCommand;
 import com.anony.domain.client.ClientService;
 import com.anony.domain.security.AuthenticatedUser;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -28,6 +30,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(AuthController.class);
 
   private final AuthService authService;
   private final ClientService clientService;
@@ -52,6 +56,7 @@ public class AuthController {
   @PostMapping("/register")
   public ResponseEntity<LoginResponse> register(
       @Valid @RequestBody ClientRegistrationRequest clientRegistrationRequest) {
+    LOGGER.info("Received client registration request for email={}", clientRegistrationRequest.email());
     ClientRegistrationCommand command =
         new ClientRegistrationCommand(
             clientRegistrationRequest.email(),
@@ -78,6 +83,9 @@ public class AuthController {
             authenticationResult.expiresIn(),
             userSummaryDto);
 
+    LOGGER.info(
+        "Completed client registration and issued JWT for userId={}",
+        authenticationResult.userId());
     return ResponseEntity.status(HttpStatus.CREATED).body(loginResponse);
   }
 
@@ -89,6 +97,7 @@ public class AuthController {
    */
   @PostMapping("/login")
   public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
+    LOGGER.info("Received login request for email={}", loginRequest.email());
     AuthenticationResult authenticationResult =
         authService.authenticate(loginRequest.email(), loginRequest.password());
 
@@ -117,9 +126,11 @@ public class AuthController {
   public ResponseEntity<LogoutResponse> logout(
       @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
     if (authenticatedUser != null) {
+      LOGGER.info("Received logout request for userId={}", authenticatedUser.userId());
       authService.logout(authenticatedUser.userId());
       return ResponseEntity.ok(new LogoutResponse("Logged out successfully"));
     } else {
+      LOGGER.warn("Rejected unauthenticated logout request.");
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
   }
@@ -133,6 +144,7 @@ public class AuthController {
   @ExceptionHandler(BadCredentialsException.class)
   public ResponseEntity<ErrorResponse> handleBadCredentials(
       BadCredentialsException badCredentialsException) {
+    LOGGER.warn("Returning 401 Unauthorized from AuthController: {}", badCredentialsException.getMessage());
     return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
         .body(new ErrorResponse(badCredentialsException.getMessage()));
   }
@@ -146,6 +158,7 @@ public class AuthController {
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<ErrorResponse> handleIllegalArgument(
       IllegalArgumentException illegalArgumentException) {
+    LOGGER.warn("Returning 400 Bad Request from AuthController: {}", illegalArgumentException.getMessage());
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
         .body(new ErrorResponse(illegalArgumentException.getMessage()));
   }

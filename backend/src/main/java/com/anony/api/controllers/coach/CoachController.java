@@ -22,6 +22,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -43,6 +45,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/coaches")
 public class CoachController {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(CoachController.class);
 
   private final CoachService coachService;
   private final AuthService authService;
@@ -67,6 +71,11 @@ public class CoachController {
   @PostMapping("/register")
   public ResponseEntity<CoachProfileDto> register(
       @Valid @RequestBody CoachRegistrationRequest coachRegistrationRequest) {
+    LOGGER.info(
+        "Received coach registration request for email={} (firstName={}, lastName={})",
+        coachRegistrationRequest.email(),
+        coachRegistrationRequest.firstName(),
+        coachRegistrationRequest.lastName());
     CoachRegistrationCommand command =
         new CoachRegistrationCommand(
             coachRegistrationRequest.email(),
@@ -88,6 +97,10 @@ public class CoachController {
             coachRegistrationRequest.hourlyRate());
 
     CoachProfileDetails details = coachService.registerCoach(command);
+    LOGGER.info(
+        "Completed coach registration: coachId={}, userId={}",
+        details.coachId(),
+        details.userId());
     return ResponseEntity.status(HttpStatus.CREATED).body(toDto(details));
   }
 
@@ -99,6 +112,7 @@ public class CoachController {
    */
   @PostMapping("/login")
   public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
+    LOGGER.info("Received coach login request for email={}", loginRequest.email());
     AuthenticationResult authenticationResult =
         authService.authenticate(loginRequest.email(), loginRequest.password());
 
@@ -115,8 +129,13 @@ public class CoachController {
               authenticationResult.expiresIn(),
               userSummaryDto);
 
+      LOGGER.info("Coach login succeeded for userId={}", authenticationResult.userId());
       return ResponseEntity.ok(loginResponse);
     } else {
+      LOGGER.warn(
+          "Rejected coach login for non-coach account userId={} (role={})",
+          authenticationResult.userId(),
+          authenticationResult.role());
       throw new BadCredentialsException("Account is not registered as a coach.");
     }
   }
@@ -132,13 +151,19 @@ public class CoachController {
       @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
     if (authenticatedUser != null) {
       if (authenticatedUser.role() == UserRole.COACH) {
+        LOGGER.debug("Fetching /api/v1/coaches/me for userId={}", authenticatedUser.userId());
         CoachProfileDetails details =
             coachService.getCoachProfileByUserId(authenticatedUser.userId());
         return ResponseEntity.ok(toDto(details));
       } else {
+        LOGGER.warn(
+            "Forbidden GET /api/v1/coaches/me from non-coach userId={} (role={})",
+            authenticatedUser.userId(),
+            authenticatedUser.role());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
       }
     } else {
+      LOGGER.warn("Unauthorized GET /api/v1/coaches/me without principal.");
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
   }
@@ -156,6 +181,7 @@ public class CoachController {
       @Valid @RequestBody CoachUpdateRequest coachUpdateRequest) {
     if (authenticatedUser != null) {
       if (authenticatedUser.role() == UserRole.COACH) {
+        LOGGER.info("Updating coach profile for userId={}", authenticatedUser.userId());
         CoachUpdateCommand command =
             new CoachUpdateCommand(
                 coachUpdateRequest.firstName(),
@@ -178,9 +204,14 @@ public class CoachController {
             coachService.updateCoachProfile(authenticatedUser.userId(), command);
         return ResponseEntity.ok(toDto(details));
       } else {
+        LOGGER.warn(
+            "Forbidden PUT /api/v1/coaches/me from non-coach userId={} (role={})",
+            authenticatedUser.userId(),
+            authenticatedUser.role());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
       }
     } else {
+      LOGGER.warn("Unauthorized PUT /api/v1/coaches/me without principal.");
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
   }
@@ -198,8 +229,17 @@ public class CoachController {
       @PathVariable("id") UUID coachId,
       @RequestParam(name = "from", required = false) Instant from,
       @RequestParam(name = "to", required = false) Instant to) {
+    LOGGER.debug(
+        "Fetching available slots for coachId={} (from={}, to={})",
+        coachId,
+        from,
+        to);
     List<CoachAvailabilitySlotDetails> availableSlots =
         coachService.getCoachAvailabilities(coachId, from, to);
+    LOGGER.info(
+        "Returning {} available slots for coachId={}",
+        availableSlots.size(),
+        coachId);
     return ResponseEntity.ok(toSlotDtos(availableSlots));
   }
 
@@ -212,6 +252,7 @@ public class CoachController {
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<ErrorResponse> handleIllegalArgument(
       IllegalArgumentException illegalArgumentException) {
+    LOGGER.warn("Returning 400 Bad Request from CoachController: {}", illegalArgumentException.getMessage());
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
         .body(new ErrorResponse(illegalArgumentException.getMessage()));
   }
@@ -225,6 +266,7 @@ public class CoachController {
   @ExceptionHandler(IllegalStateException.class)
   public ResponseEntity<ErrorResponse> handleNotFound(
       IllegalStateException illegalStateException) {
+    LOGGER.warn("Returning 404 Not Found from CoachController: {}", illegalStateException.getMessage());
     return ResponseEntity.status(HttpStatus.NOT_FOUND)
         .body(new ErrorResponse(illegalStateException.getMessage()));
   }
@@ -238,6 +280,7 @@ public class CoachController {
   @ExceptionHandler(BadCredentialsException.class)
   public ResponseEntity<ErrorResponse> handleBadCredentials(
       BadCredentialsException badCredentialsException) {
+    LOGGER.warn("Returning 401 Unauthorized from CoachController: {}", badCredentialsException.getMessage());
     return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
         .body(new ErrorResponse(badCredentialsException.getMessage()));
   }

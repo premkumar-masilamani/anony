@@ -10,6 +10,8 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class DefaultClientService implements ClientService {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(DefaultClientService.class);
 
   private final UserRepository userRepository;
   private final ClientRepository clientRepository;
@@ -50,6 +54,7 @@ public class DefaultClientService implements ClientService {
 
       if (StringUtils.isNotBlank(email) && StringUtils.isNotBlank(rawPassword)) {
         if (rawPassword.length() > 8 && rawPassword.length() <= 32) {
+          LOGGER.debug("Registering new client account for email={}", email);
           Optional<UserEntity> existingUser = userRepository.findByEmailIgnoreCase(email.trim());
 
           if (existingUser.isEmpty()) {
@@ -82,18 +87,29 @@ public class DefaultClientService implements ClientService {
 
             ClientEntity savedClientEntity = clientRepository.save(clientEntity);
 
+            LOGGER.info(
+                "Registered clientId={} (userId={}, alias={}) for email={}",
+                savedClientEntity.getClientId(),
+                savedUserEntity.getUserId(),
+                alias,
+                savedUserEntity.getEmail());
+
             return toClientProfileDetails(savedClientEntity, savedUserEntity);
           } else {
+            LOGGER.warn("Client registration rejected: email already registered ({})", email);
             throw new IllegalArgumentException("Email is already registered: " + email);
           }
         } else {
+          LOGGER.warn("Client registration rejected: invalid password length for email={}", email);
           throw new IllegalArgumentException(
               "Password must be between 9 and 32 characters in length.");
         }
       } else {
+        LOGGER.warn("Client registration rejected: email or password was blank.");
         throw new IllegalArgumentException("Email and password cannot be blank.");
       }
     } else {
+      LOGGER.warn("Client registration rejected: command was null.");
       throw new IllegalArgumentException("Client registration command cannot be null.");
     }
   }
@@ -102,15 +118,23 @@ public class DefaultClientService implements ClientService {
   @Transactional(readOnly = true)
   public ClientProfileDetails getClientProfileByUserId(UUID userId) {
     if (userId != null) {
+      LOGGER.debug("Fetching client profile for userId={}", userId);
       Optional<ClientEntity> clientOptional = clientRepository.findByUser_UserId(userId);
 
       if (clientOptional.isPresent()) {
         ClientEntity clientEntity = clientOptional.get();
+        LOGGER.debug(
+            "Found clientId={} (alias={}) for userId={}",
+            clientEntity.getClientId(),
+            clientEntity.getAlias(),
+            userId);
         return toClientProfileDetails(clientEntity, clientEntity.getUser());
       } else {
+        LOGGER.warn("Client profile not found for userId={}", userId);
         throw new IllegalStateException("Client profile not found for user identifier: " + userId);
       }
     } else {
+      LOGGER.warn("Client profile lookup rejected: userId was null.");
       throw new IllegalArgumentException("User identifier cannot be null.");
     }
   }

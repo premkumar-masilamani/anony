@@ -33,6 +33,8 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +44,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class DefaultCoachService implements CoachService {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(DefaultCoachService.class);
 
   private static final int SLOT_DURATION_THIRTY_MINUTES = 30;
   private static final int SLOT_DURATION_SIXTY_MINUTES = 60;
@@ -156,35 +160,54 @@ public class DefaultCoachService implements CoachService {
                       List<String> assignedDomainCodes =
                           saveCoachDomains(savedCoachEntity, coachRegistrationCommand.domainCodes());
 
+                      LOGGER.info(
+                          "Registered coachId={} (userId={}, email={}, timezone={}, domains={})",
+                          savedCoachEntity.getCoachId(),
+                          savedUserEntity.getUserId(),
+                          savedUserEntity.getEmail(),
+                          savedCoachEntity.getTimezone(),
+                          assignedDomainCodes);
+
                       return toCoachProfileDetails(
                           savedCoachEntity, savedUserEntity, assignedDomainCodes);
                     } else {
+                      LOGGER.warn(
+                          "Coach registration rejected: no valid ICF credential level for email={}",
+                          email);
                       throw new IllegalArgumentException(
                           "Invalid ICF credential level: must be ACC, PCC, MCC, or ACTC.");
                     }
                   } else {
+                    LOGGER.warn("Coach registration rejected: email already registered ({})", email);
                     throw new IllegalArgumentException("Email is already registered: " + email);
                   }
                 } else {
+                  LOGGER.warn("Coach registration rejected: invalid password length for email={}", email);
                   throw new IllegalArgumentException(
                       "Password must be between 9 and 32 characters in length.");
                 }
               } else {
+                LOGGER.warn("Coach registration rejected: timezone was blank for email={}", email);
                 throw new IllegalArgumentException("Timezone cannot be blank.");
               }
             } else {
+              LOGGER.warn("Coach registration rejected: lastName was blank for email={}", email);
               throw new IllegalArgumentException("Last name cannot be blank.");
             }
           } else {
+            LOGGER.warn("Coach registration rejected: firstName was blank for email={}", email);
             throw new IllegalArgumentException("First name cannot be blank.");
           }
         } else {
+          LOGGER.warn("Coach registration rejected: password was blank for email={}", email);
           throw new IllegalArgumentException("Password cannot be blank.");
         }
       } else {
+        LOGGER.warn("Coach registration rejected: email was blank.");
         throw new IllegalArgumentException("Email cannot be blank.");
       }
     } else {
+      LOGGER.warn("Coach registration rejected: command was null.");
       throw new IllegalArgumentException("Coach registration command cannot be null.");
     }
   }
@@ -245,29 +268,45 @@ public class DefaultCoachService implements CoachService {
                   List<String> assignedDomainCodes =
                       saveCoachDomains(updatedCoachEntity, coachUpdateCommand.domainCodes());
 
+                  LOGGER.info(
+                      "Updated coach profile for coachId={} (userId={}, timezone={}, domains={})",
+                      updatedCoachEntity.getCoachId(),
+                      userId,
+                      updatedCoachEntity.getTimezone(),
+                      assignedDomainCodes);
+
                   return toCoachProfileDetails(
                       updatedCoachEntity, updatedCoachEntity.getUser(), assignedDomainCodes);
                 } else {
+                  LOGGER.warn(
+                      "Coach profile update rejected: invalid ICF credential level for userId={}",
+                      userId);
                   throw new IllegalArgumentException(
                       "Invalid ICF credential level: must be ACC, PCC, MCC, or ACTC.");
                 }
               } else {
+                LOGGER.warn("Coach profile update failed: coach not found for userId={}", userId);
                 throw new IllegalStateException(
                     "Coach profile not found for user identifier: " + userId);
               }
             } else {
+              LOGGER.warn("Coach profile update rejected: timezone was blank for userId={}", userId);
               throw new IllegalArgumentException("Timezone cannot be blank.");
             }
           } else {
+            LOGGER.warn("Coach profile update rejected: lastName was blank for userId={}", userId);
             throw new IllegalArgumentException("Last name cannot be blank.");
           }
         } else {
+          LOGGER.warn("Coach profile update rejected: firstName was blank for userId={}", userId);
           throw new IllegalArgumentException("First name cannot be blank.");
         }
       } else {
+        LOGGER.warn("Coach profile update rejected: command was null for userId={}", userId);
         throw new IllegalArgumentException("Coach update command cannot be null.");
       }
     } else {
+      LOGGER.warn("Coach profile update rejected: userId was null.");
       throw new IllegalArgumentException("User identifier cannot be null.");
     }
   }
@@ -276,6 +315,7 @@ public class DefaultCoachService implements CoachService {
   @Transactional(readOnly = true)
   public CoachProfileDetails getCoachProfileByUserId(UUID userId) {
     if (userId != null) {
+      LOGGER.debug("Looking up coach profile for userId={}", userId);
       Optional<CoachEntity> coachOptional = coachRepository.findByUser_UserId(userId);
 
       if (coachOptional.isPresent()) {
@@ -288,11 +328,19 @@ public class DefaultCoachService implements CoachService {
           domainCodes.add(coachDomainEntity.getDomain().getCode());
         }
 
+        LOGGER.debug(
+            "Found coachId={} (verified={}, domains={}) for userId={}",
+            coachEntity.getCoachId(),
+            coachEntity.getVerified(),
+            domainCodes,
+            userId);
         return toCoachProfileDetails(coachEntity, coachEntity.getUser(), domainCodes);
       } else {
+        LOGGER.warn("Coach profile not found for userId={}", userId);
         throw new IllegalStateException("Coach profile not found for user identifier: " + userId);
       }
     } else {
+      LOGGER.warn("Coach profile lookup rejected: userId was null.");
       throw new IllegalArgumentException("User identifier cannot be null.");
     }
   }
@@ -301,12 +349,24 @@ public class DefaultCoachService implements CoachService {
   @Transactional
   public int generateUpcomingAvailabilitiesForAllCoaches() {
     List<CoachEntity> allCoaches = coachRepository.findAll();
+    LOGGER.info(
+        "Generating 30-day rolling availability slots for {} registered coaches...",
+        allCoaches.size());
     int totalCreatedSlots = 0;
 
     for (CoachEntity coachEntity : allCoaches) {
-      totalCreatedSlots += generateThirtyDaySlotsForCoach(coachEntity);
+      int createdForCoach = generateThirtyDaySlotsForCoach(coachEntity);
+      totalCreatedSlots += createdForCoach;
+      LOGGER.debug(
+          "Coach availability pass complete for coachId={}: created {} new slots.",
+          coachEntity.getCoachId(),
+          createdForCoach);
     }
 
+    LOGGER.info(
+        "Completed 30-day availability generation across {} coaches (created {} new slots).",
+        allCoaches.size(),
+        totalCreatedSlots);
     return totalCreatedSlots;
   }
 
@@ -325,6 +385,11 @@ public class DefaultCoachService implements CoachService {
                 : effectiveFrom.plus(Duration.ofDays(DEFAULT_DISCOVERY_WINDOW_DAYS));
 
         if (!effectiveTo.isBefore(effectiveFrom)) {
+          LOGGER.debug(
+              "Querying unbooked slots for coachId={} in UTC window [{} -> {}]",
+              coachId,
+              effectiveFrom,
+              effectiveTo);
           List<SlotEntity> availableSlotEntities =
               slotRepository.findAvailableSlotsByCoachInWindow(
                   coachId, effectiveFrom, effectiveTo);
@@ -334,16 +399,27 @@ public class DefaultCoachService implements CoachService {
             availableSlots.add(toSlotDetails(slotEntity, coachId, false));
           }
 
+          LOGGER.debug(
+              "Resolved {} unbooked availability slots for coachId={}",
+              availableSlots.size(),
+              coachId);
           return availableSlots;
         } else {
+          LOGGER.warn(
+              "Invalid availability query window for coachId={}: effectiveTo={} is before effectiveFrom={}",
+              coachId,
+              effectiveTo,
+              effectiveFrom);
           throw new IllegalArgumentException(
               "End timestamp must not be before start timestamp.");
         }
       } else {
+        LOGGER.warn("Coach profile not found when querying availabilities for coachId={}", coachId);
         throw new IllegalStateException(
             "Coach profile not found for coach identifier: " + coachId);
       }
     } else {
+      LOGGER.warn("Coach availability query rejected: coachId was null.");
       throw new IllegalArgumentException("Coach identifier cannot be null.");
     }
   }
@@ -467,9 +543,13 @@ public class DefaultCoachService implements CoachService {
       try {
         return ZoneId.of(timezone.trim());
       } catch (DateTimeException dateTimeException) {
+        LOGGER.warn(
+            "Invalid coach timezone '{}' encountered; falling back to UTC for slot generation.",
+            timezone);
         return ZoneOffset.UTC;
       }
     } else {
+      LOGGER.warn("Blank coach timezone encountered; falling back to UTC for slot generation.");
       return ZoneOffset.UTC;
     }
   }
@@ -491,12 +571,19 @@ public class DefaultCoachService implements CoachService {
       if (Boolean.TRUE.equals(existingTemplate.getActive())) {
         return existingTemplate;
       } else {
+        LOGGER.info(
+            "Reactivating availability templateId={} for coachId={}",
+            existingTemplate.getAvailabilityTemplateId(),
+            coachEntity.getCoachId());
         existingTemplate.setActive(true);
         AvailabilityTemplateEntity updated =
             availabilityTemplateRepository.save(existingTemplate);
         return updated != null ? updated : existingTemplate;
       }
     } else {
+      LOGGER.info(
+          "Creating default 60-minute availability template for coachId={}",
+          coachEntity.getCoachId());
       AvailabilityTemplateEntity newTemplate = new AvailabilityTemplateEntity();
       newTemplate.setCoach(coachEntity);
       newTemplate.setSlotDurationMinutes((short) SLOT_DURATION_SIXTY_MINUTES);
@@ -515,6 +602,9 @@ public class DefaultCoachService implements CoachService {
     if (!existingWindows.isEmpty()) {
       return existingWindows;
     } else {
+      LOGGER.info(
+          "No availability windows found for templateId={}; creating default 7-day morning & afternoon windows.",
+          availabilityTemplate.getAvailabilityTemplateId());
       List<AvailabilityWindowEntity> defaultWindows = new ArrayList<>();
       for (short dayOfWeek = 1; dayOfWeek <= DAYS_IN_WEEK; dayOfWeek++) {
         AvailabilityWindowEntity morningWindow = new AvailabilityWindowEntity();

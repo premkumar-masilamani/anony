@@ -33,6 +33,8 @@ public class CoachAvailabilityScheduler {
    */
   @EventListener(ApplicationReadyEvent.class)
   public void generateAvailabilitiesOnStartup() {
+    logger.info(
+        "Triggering startup coach availability generation for the next 30 days...");
     int createdSlots = coachService.generateUpcomingAvailabilitiesForAllCoaches();
     logger.info(
         "Generated {} coach availability slots for the next 30 days on startup.", createdSlots);
@@ -43,6 +45,8 @@ public class CoachAvailabilityScheduler {
    */
   @Scheduled(cron = "0 0 0 * * *")
   public void generateAvailabilitiesDaily() {
+    logger.info(
+        "Triggering daily cron coach availability generation for the next 30 days...");
     int createdSlots = coachService.generateUpcomingAvailabilitiesForAllCoaches();
     logger.info(
         "Generated {} coach availability slots for the next 30 days via daily cron.",
