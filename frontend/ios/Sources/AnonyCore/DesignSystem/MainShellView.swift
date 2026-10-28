@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 /// 3-Tab Main Shell for authenticated clients:
@@ -973,14 +974,20 @@ public struct MuseVoiceGuideCompanionView: View {
 // MARK: - Tab 3: My Sessions View
 public struct MySessionsView: View {
     public let preferences: OnboardingPreferences?
-    public var sessions: [CoachingSession]
+    @StateObject public var viewModel: MySessionsViewModel
+
+    private let countdownTimer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
+
+    public var sessions: [CoachingSession] {
+        viewModel.sessions
+    }
 
     public init(preferences: OnboardingPreferences? = nil) {
         self.preferences = preferences
 
-        // Synthesize scheduled session if client completed onboarding
+        let initialSessions: [CoachingSession]
         if let prefs = preferences {
-            self.sessions = [
+            initialSessions = [
                 CoachingSession(
                     coachAlias: prefs.selectedCoachAlias ?? "EchoClaritas",
                     coachAvatarSeed: prefs.selectedCoachAlias ?? "EchoClaritas",
@@ -993,8 +1000,18 @@ public struct MySessionsView: View {
                 )
             ]
         } else {
-            self.sessions = []
+            initialSessions = []
         }
+
+        _viewModel = StateObject(wrappedValue: MySessionsViewModel(sessions: initialSessions))
+    }
+
+    public init(
+        viewModel: MySessionsViewModel,
+        preferences: OnboardingPreferences? = nil
+    ) {
+        self.preferences = preferences
+        _viewModel = StateObject(wrappedValue: viewModel)
     }
 
     public var body: some View {
@@ -1011,11 +1028,16 @@ public struct MySessionsView: View {
                         .foregroundStyle(ColorPalette.textSecondary)
                 }
 
-                if sessions.isEmpty {
+                if let activeSession = viewModel.activeSession,
+                   case .connected(let token) = viewModel.connectionState {
+                    activeSafeRoomBanner(session: activeSession, token: token)
+                }
+
+                if viewModel.sessions.isEmpty {
                     emptyState
                 } else {
                     VStack(spacing: 14) {
-                        ForEach(sessions) { session in
+                        ForEach(viewModel.sessions) { session in
                             sessionCard(session)
                         }
                     }
@@ -1024,6 +1046,49 @@ public struct MySessionsView: View {
             .padding(.horizontal, 20)
             .padding(.top, 10)
             .padding(.bottom, 24)
+        }
+        .onReceive(countdownTimer) { now in
+            viewModel.tick(to: now)
+        }
+    }
+
+    private func activeSafeRoomBanner(session: CoachingSession, token: SafeRoomConnectionToken) -> some View {
+        GlassCard(style: .highlighted(ColorPalette.sageGreen), cornerRadius: 16) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    PulsingAuraView(color: ColorPalette.sageGreen, diameter: 28, cycleDuration: 3.5)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Connected to Safe Room")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(ColorPalette.textPrimary)
+
+                        Text("Encrypted WebRTC audio with \(session.coachAlias) (\(token.roomName))")
+                            .font(.caption)
+                            .foregroundStyle(ColorPalette.textSecondary)
+                    }
+
+                    Spacer()
+
+                    TagPillView(
+                        text: "Live",
+                        systemImage: "waveform",
+                        variant: .sage
+                    )
+                }
+
+                AnonyButton(
+                    title: "Leave Safe Room",
+                    systemImage: "phone.down.fill",
+                    variant: .secondary,
+                    size: .small
+                ) {
+                    Task {
+                        await viewModel.leaveSafeRoom()
+                    }
+                }
+            }
         }
     }
 
@@ -1049,10 +1114,26 @@ public struct MySessionsView: View {
     }
 
     private func sessionCard(_ session: CoachingSession) -> some View {
-        GlassCard(style: .elevated, cornerRadius: 16) {
+        let alert = viewModel.reminderAlert(for: session)
+        let isSafeRoomOpen = viewModel.canEnterSafeRoom(for: session)
+        let countdownText = viewModel.formattedCountdown(for: session)
+        let isConnectingThisSession = viewModel.connectionState == .connecting(sessionId: session.id)
+
+        return GlassCard(
+            style: isSafeRoomOpen ? .highlighted(ColorPalette.sageGreen) : .elevated,
+            cornerRadius: 16
+        ) {
             VStack(alignment: .leading, spacing: 14) {
+                if let alert {
+                    reminderAlertBanner(alert)
+                }
+
                 HStack(spacing: 12) {
-                    AvatarCircleView(seed: session.coachAvatarSeed, size: .medium)
+                    AvatarCircleView(
+                        seed: session.coachAvatarSeed,
+                        size: .medium,
+                        showAura: isSafeRoomOpen
+                    )
 
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 6) {
@@ -1084,7 +1165,7 @@ public struct MySessionsView: View {
                 Divider()
                     .background(ColorPalette.cardBorder)
 
-                HStack {
+                HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Scheduled For")
                             .font(.caption2)
@@ -1102,23 +1183,86 @@ public struct MySessionsView: View {
 
                     Spacer()
 
-                    TagPillView(
-                        text: session.category.title,
-                        systemImage: session.category.systemImage,
-                        variant: .cyan
-                    )
+                    VStack(alignment: .trailing, spacing: 6) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "timer")
+                                .font(.caption2)
+                                .foregroundStyle(isSafeRoomOpen ? ColorPalette.sageGreen : ColorPalette.calmingCyan)
+
+                            Text(countdownText)
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .monospacedDigit()
+                                .foregroundStyle(isSafeRoomOpen ? ColorPalette.sageGreen : ColorPalette.textPrimary)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(
+                            Capsule()
+                                .fill(ColorPalette.midnightSlate.opacity(0.65))
+                        )
+
+                        TagPillView(
+                            text: session.category.title,
+                            systemImage: session.category.systemImage,
+                            variant: .cyan
+                        )
+                    }
                 }
 
                 AnonyButton(
-                    title: "Join 1-on-1 Audio Call",
-                    systemImage: "phone.fill",
-                    variant: .primary,
-                    size: .medium
+                    title: "Enter Safe Room",
+                    systemImage: isSafeRoomOpen ? "lock.shield.fill" : "clock.badge",
+                    variant: isSafeRoomOpen ? .primary : .secondary,
+                    size: .medium,
+                    isLoading: isConnectingThisSession,
+                    isDisabled: !isSafeRoomOpen
                 ) {
-                    // Audio call entry
+                    Task {
+                        await viewModel.enterSafeRoom(for: session)
+                    }
                 }
             }
         }
+    }
+
+    private func reminderAlertBanner(_ alert: SessionReminderAlert) -> some View {
+        let accentColor: Color
+        switch alert {
+        case .oneDayBefore:
+            accentColor = ColorPalette.mutedLavender
+        case .twoHoursBefore:
+            accentColor = ColorPalette.calmingCyan
+        case .safeRoomOpen:
+            accentColor = ColorPalette.sageGreen
+        }
+
+        return HStack(spacing: 10) {
+            if alert == .safeRoomOpen {
+                PulsingAuraView(color: accentColor, diameter: 22, cycleDuration: 3.5)
+            } else {
+                Image(systemName: alert.systemImage)
+                    .font(.subheadline)
+                    .foregroundStyle(accentColor)
+            }
+
+            Text(alert.message)
+                .font(.footnote)
+                .fontWeight(.medium)
+                .foregroundStyle(ColorPalette.textPrimary)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(accentColor.opacity(0.14))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(accentColor.opacity(0.35), lineWidth: 1)
+                )
+        )
     }
 
     private func formattedDate(_ date: Date) -> String {
