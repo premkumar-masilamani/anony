@@ -49,4 +49,13 @@ struct ColorPaletteTests {
         #expect(String(describing: background).contains("LinearGradient"))
         #expect(String(describing: auraGlow).contains("RadialGradient"))
     }
+
+    @Test("Distinct coach theme tokens and gradients exist")
+    func coachThemeTokensAndGradientsExist() {
+        #expect(ColorPalette.coachPrimaryAccent == ColorPalette.sageGreen)
+        #expect(ColorPalette.coachSecondaryAccent == ColorPalette.mutedLavender)
+        #expect(ColorPalette.coachCardBorder == ColorPalette.sageGreen.opacity(0.22))
+        #expect(String(describing: ColorPalette.coachBackgroundGradient).contains("LinearGradient"))
+        #expect(String(describing: ColorPalette.coachAuraGlowGradient).contains("RadialGradient"))
+    }
 }

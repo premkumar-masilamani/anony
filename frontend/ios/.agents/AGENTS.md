@@ -41,6 +41,7 @@ make dev
 - In Anonymous Blind Match flows, prevent direct coach profile browsing and slot reservation; capture struggle prompts and preferred time windows, presenting confirmed session booking details directly.
 - In `@MainActor` view models (e.g. `CoachAvailabilityViewModel`), annotate shared static constants with `nonisolated` (`nonisolated public static let`) so SwiftUI view initializers can reference them as default parameter values without Swift 6 actor-isolation warnings.
 - Parameterize time-sensitive domain and view model calculations (countdown timers, reminder thresholds, and 10-minute Safe Room entry windows) with an injectable `referenceDate: Date` (`currentDate` on `MySessionsViewModel`) for deterministic unit testing, and explicitly `import Combine` when declaring `Timer.publish(...).autoconnect()` properties in library views.
+- In Coach Workspace navigation shells, order tabs strictly according to domain workflow (Screen 1: Availability & Free Pledge, Screen 2: Upcoming Sessions Calendar, Screen 3: Profile & Earnings Summary), derive distinct coach themes directly from `ColorPalette` semantic tokens (`coachPrimaryAccent = sageGreen`, `coachSecondaryAccent = mutedLavender`, `coachBackgroundGradient`, `coachAuraGlowGradient`) to visually distinguish Phone B from Phone A in live recordings, and parameterize initial tab and profile states for deterministic Swift Testing.
 
 ### Ask first
 - Introducing third-party Swift Package dependencies beyond `livekit-client-swift`.
