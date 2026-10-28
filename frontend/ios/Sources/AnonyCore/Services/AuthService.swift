@@ -8,10 +8,25 @@ public protocol AuthServiceProtocol: Sendable {
     func fetchCoachProfile() async throws -> CoachProfileResponse
     func updateCoachProfile(payload: CoachUpdatePayload) async throws -> CoachProfileResponse
     func fetchClientProfile() async throws -> ClientProfileResponse
+    func updateClientPrivacyMode(isAnonymousMode: Bool) async throws -> ClientProfileResponse
     func fetchCoachAvailabilities(coachId: UUID, from: Date?, to: Date?) async throws -> [CoachAvailabilitySlotResponse]
 }
 
 extension AuthServiceProtocol {
+    public func updateClientPrivacyMode(isAnonymousMode: Bool) async throws -> ClientProfileResponse {
+        return ClientProfileResponse(
+            clientId: UUID(),
+            userId: UUID(),
+            email: "client@anony.internal",
+            firstName: "Anonymous",
+            lastName: "Client",
+            alias: "TranquilOwl42",
+            isAnonymous: isAnonymousMode,
+            isOnboarded: true,
+            isAnonymousMode: isAnonymousMode
+        )
+    }
+
     public func fetchCoachAvailabilities(coachId: UUID, from: Date?, to: Date?) async throws -> [CoachAvailabilitySlotResponse] {
         return []
     }
@@ -224,7 +239,7 @@ public final class RemoteAuthService: AuthServiceProtocol, Sendable {
             throw AuthError.passwordTooLong
         }
 
-        let registerCoachURL = APIEndpoints.url(for: APIEndpoints.coachesRegister, baseURL: baseURL)
+        let registerCoachURL = APIEndpoints.url(for: APIEndpoints.register, baseURL: baseURL)
         var request = URLRequest(url: registerCoachURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -250,6 +265,24 @@ public final class RemoteAuthService: AuthServiceProtocol, Sendable {
         }
 
         if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
+            let decoder = JSONDecoder()
+            if let loginPayload = try? decoder.decode(RemoteLoginResponse.self, from: data) {
+                let alias = identityService.fetchAlias() ?? ClientProfile.generateTranquilAlias()
+                let authSession = AuthSession(
+                    token: loginPayload.token,
+                    alias: alias,
+                    avatarId: alias,
+                    email: loginPayload.user.email,
+                    role: loginPayload.user.role
+                )
+                _ = identityService.saveSession(
+                    token: authSession.token,
+                    alias: authSession.alias,
+                    email: authSession.email,
+                    role: authSession.role
+                )
+                return authSession
+            }
             return try await login(email: payload.email, password: payload.password)
         } else {
             let serverError = parseErrorMessage(from: data) ?? "Coach registration failed with status code \(httpResponse.statusCode)."
@@ -375,6 +408,46 @@ public final class RemoteAuthService: AuthServiceProtocol, Sendable {
             throw AuthError.unauthorized
         } else {
             let serverError = parseErrorMessage(from: data) ?? "Failed to fetch client profile with status code \(httpResponse.statusCode)."
+            throw AuthError.registrationFailed(serverError)
+        }
+    }
+
+    public func updateClientPrivacyMode(isAnonymousMode: Bool) async throws -> ClientProfileResponse {
+        guard let token = identityService.fetchToken(), !token.isEmpty else {
+            throw AuthError.unauthorized
+        }
+
+        let profileURL = APIEndpoints.url(for: APIEndpoints.clientsMe, baseURL: baseURL)
+        var request = URLRequest(url: profileURL)
+        request.httpMethod = "PATCH"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["is_anonymous_mode": isAnonymousMode])
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            throw AuthError.registrationFailed("Network connection failure: \(error.localizedDescription)")
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AuthError.registrationFailed("Invalid server response.")
+        }
+
+        if httpResponse.statusCode == 200 {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            guard let profile = try? decoder.decode(ClientProfileResponse.self, from: data) else {
+                throw AuthError.registrationFailed("Failed to parse updated client profile.")
+            }
+            return profile
+        } else if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+            throw AuthError.unauthorized
+        } else {
+            let serverError = parseErrorMessage(from: data) ?? "Failed to update client privacy mode with status code \(httpResponse.statusCode)."
             throw AuthError.registrationFailed(serverError)
         }
     }

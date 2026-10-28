@@ -65,7 +65,7 @@ public final class UserDefaultsProfileService: ProfileServiceProtocol, @unchecke
 
     public func updateProfile(_ profile: ClientProfile) async throws -> ClientProfile {
         // Reference endpoint path in accordance with project architecture
-        _ = APIEndpoints.clientProfile
+        _ = APIEndpoints.clientsMe
 
         // Simulate network latency for API update
         try await Task.sleep(nanoseconds: 40_000_000)
@@ -76,7 +76,7 @@ public final class UserDefaultsProfileService: ProfileServiceProtocol, @unchecke
 
     public func updatePrivacyMode(isAnonymous: Bool) async throws -> Bool {
         // Reference endpoint path in accordance with project architecture
-        _ = APIEndpoints.clientPrivacyMode
+        _ = APIEndpoints.clientsMe
 
         // Simulate network latency for API update
         try await Task.sleep(nanoseconds: 30_000_000)
@@ -121,13 +121,13 @@ public final class MockProfileService: ProfileServiceProtocol, @unchecked Sendab
     }
 
     public func updateProfile(_ profile: ClientProfile) async throws -> ClientProfile {
-        _ = APIEndpoints.clientProfile
+        _ = APIEndpoints.clientsMe
         saveProfile(profile)
         return profile
     }
 
     public func updatePrivacyMode(isAnonymous: Bool) async throws -> Bool {
-        _ = APIEndpoints.clientPrivacyMode
+        _ = APIEndpoints.clientsMe
         var updated = getProfile()
         updated.isAnonymousMode = isAnonymous
         saveProfile(updated)

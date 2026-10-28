@@ -321,35 +321,7 @@ struct RemoteAuthServiceTests {
         let targetPassword = "CoachPassword#123"
 
         MockURLProtocol.requestHandler = { request in
-            if request.url?.path == "/api/v1/coaches/register" {
-                #expect(request.httpMethod == "POST")
-                let coachProfileJSON = """
-                {
-                    "coachId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-                    "userId": "11111111-2222-3333-4444-555555555555",
-                    "email": "\(targetEmail)",
-                    "firstName": "Dan",
-                    "lastName": "Okafor",
-                    "timezone": "Europe/London",
-                    "icfLevel": "MCC",
-                    "icfAcc": false,
-                    "icfPcc": false,
-                    "icfMcc": true,
-                    "icfActc": false,
-                    "isVerified": false,
-                    "isOnboarded": false,
-                    "domainCodes": ["LEADERSHIP"],
-                    "createdAt": "2026-10-27T10:00:00Z"
-                }
-                """
-                let response = HTTPURLResponse(
-                    url: request.url!,
-                    statusCode: 201,
-                    httpVersion: nil,
-                    headerFields: ["Content-Type": "application/json"]
-                )!
-                return (response, coachProfileJSON.data(using: .utf8)!)
-            } else if request.url?.path == "/api/v1/auth/login" {
+            if request.url?.path == "/api/v1/auth/register" {
                 #expect(request.httpMethod == "POST")
                 let loginJSON = """
                 {
@@ -364,7 +336,7 @@ struct RemoteAuthServiceTests {
                 """
                 let response = HTTPURLResponse(
                     url: request.url!,
-                    statusCode: 200,
+                    statusCode: 201,
                     httpVersion: nil,
                     headerFields: ["Content-Type": "application/json"]
                 )!
@@ -488,6 +460,53 @@ struct RemoteAuthServiceTests {
         #expect(profile.email == "arjun.mehta@example.com")
         #expect(profile.alias == "Courageous Owl")
         #expect(profile.isAnonymous == true)
+        #expect(profile.isAnonymousMode == true)
+    }
+
+    @Test("Remote update client privacy mode sends PATCH /api/v1/clients/me and returns updated profile")
+    func testRemoteUpdateClientPrivacyModeSuccess() async throws {
+        let testSession = makeTestSession()
+        let testBaseURL = URL(string: "http://127.0.0.1:8080")!
+        let identityService = isolatedIdentityService
+        _ = identityService.clearSession()
+        _ = identityService.saveToken("valid_client_token")
+
+        let authService = RemoteAuthService(
+            baseURL: testBaseURL,
+            session: testSession,
+            identityService: identityService
+        )
+
+        MockURLProtocol.requestHandler = { request in
+            #expect(request.url?.path == "/api/v1/clients/me")
+            #expect(request.httpMethod == "PATCH")
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer valid_client_token")
+
+            let profileJSON = """
+            {
+                "clientId": "30000000-0000-4000-8000-000000000001",
+                "userId": "10000000-0000-4000-8000-000000000101",
+                "email": "arjun.mehta@example.com",
+                "firstName": "Arjun",
+                "lastName": "Mehta",
+                "alias": "Courageous Owl",
+                "isAnonymous": true,
+                "isOnboarded": true,
+                "isAnonymousMode": false,
+                "createdAt": "2026-10-27T10:00:00Z"
+            }
+            """
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            return (response, profileJSON.data(using: .utf8)!)
+        }
+
+        let updatedProfile = try await authService.updateClientPrivacyMode(isAnonymousMode: false)
+        #expect(updatedProfile.isAnonymousMode == false)
     }
 
     @Test("Remote update coach profile sends PUT /api/v1/coaches/me and returns updated profile")

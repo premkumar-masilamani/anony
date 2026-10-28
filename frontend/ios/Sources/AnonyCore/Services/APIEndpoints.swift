@@ -21,8 +21,6 @@ public enum APIEndpoints {
 
     // MARK: - Coaches & Directory
     public static let coaches = "/api/v1/coaches"
-    public static let coachesRegister = "/api/v1/coaches/register"
-    public static let coachesLogin = "/api/v1/coaches/login"
     public static let coachesMe = "/api/v1/coaches/me"
     public static let favorites = "/api/v1/coaches/favorites"
 
@@ -54,10 +52,6 @@ public enum APIEndpoints {
     public static func sessionJoinToken(id: UUID) -> String {
         "/api/v1/sessions/\(id.uuidString)/join-token"
     }
-
-    // MARK: - Clients & Profile
-    public static let clientProfile = "/api/v1/clients/me/profile"
-    public static let clientPrivacyMode = "/api/v1/clients/me/privacy-mode"
 
     // MARK: - URL Resolution Helper
     /// Resolves the absolute URL using the provided base URL or active APIConfig.currentBaseURL.

@@ -70,13 +70,13 @@ public class ClientController {
   }
 
   /**
-   * Updates privacy and anonymity mode for the authenticated client via PATCH.
+   * Updates privacy and anonymity mode for the authenticated client via PATCH on /me.
    *
    * @param authenticatedUser authenticated security principal
    * @param updatePrivacyModeRequest request payload containing desired anonymity mode
    * @return updated client profile details
    */
-  @PatchMapping("/me/privacy-mode")
+  @PatchMapping("/me")
   public ResponseEntity<ClientProfileDto> patchPrivacyMode(
       @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
       @Valid @RequestBody UpdatePrivacyModeRequest updatePrivacyModeRequest) {
@@ -84,13 +84,13 @@ public class ClientController {
   }
 
   /**
-   * Updates privacy and anonymity mode for the authenticated client via PUT.
+   * Updates privacy and anonymity mode for the authenticated client via PUT on /me.
    *
    * @param authenticatedUser authenticated security principal
    * @param updatePrivacyModeRequest request payload containing desired anonymity mode
    * @return updated client profile details
    */
-  @PutMapping("/me/privacy-mode")
+  @PutMapping("/me")
   public ResponseEntity<ClientProfileDto> putPrivacyMode(
       @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
       @Valid @RequestBody UpdatePrivacyModeRequest updatePrivacyModeRequest) {

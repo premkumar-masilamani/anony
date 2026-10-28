@@ -10,8 +10,11 @@ import com.anony.domain.auth.AuthService;
 import com.anony.domain.auth.AuthenticationResult;
 import com.anony.domain.client.ClientRegistrationCommand;
 import com.anony.domain.client.ClientService;
+import com.anony.domain.coach.CoachRegistrationCommand;
+import com.anony.domain.coach.CoachService;
 import com.anony.domain.security.AuthenticatedUser;
 import jakarta.validation.Valid;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -35,37 +38,70 @@ public class AuthController {
 
   private final AuthService authService;
   private final ClientService clientService;
+  private final CoachService coachService;
 
   /**
    * Constructs the authentication controller.
    *
    * @param authService service for managing authentication and sessions
    * @param clientService service for managing client registration
+   * @param coachService service for managing coach registration
    */
-  public AuthController(AuthService authService, ClientService clientService) {
+  public AuthController(
+      AuthService authService, ClientService clientService, CoachService coachService) {
     this.authService = authService;
     this.clientService = clientService;
+    this.coachService = coachService;
   }
 
   /**
-   * Registers a new client profile and issues a signed Bearer JWT.
+   * Registers a new client or coach profile and issues a signed Bearer JWT.
    *
-   * @param clientRegistrationRequest client registration details
+   * @param clientRegistrationRequest registration details for a client or coach
    * @return response containing token and user summary
    */
   @PostMapping("/register")
   public ResponseEntity<LoginResponse> register(
       @Valid @RequestBody ClientRegistrationRequest clientRegistrationRequest) {
-    LOGGER.info("Received client registration request for email={}", clientRegistrationRequest.email());
-    ClientRegistrationCommand command =
-        new ClientRegistrationCommand(
-            clientRegistrationRequest.email(),
-            clientRegistrationRequest.password(),
-            clientRegistrationRequest.firstName(),
-            clientRegistrationRequest.lastName(),
-            clientRegistrationRequest.alias());
+    if (isCoachRegistration(clientRegistrationRequest)) {
+      LOGGER.info(
+          "Received coach registration request for email={}",
+          clientRegistrationRequest.email());
+      CoachRegistrationCommand coachCommand =
+          new CoachRegistrationCommand(
+              clientRegistrationRequest.email(),
+              clientRegistrationRequest.password(),
+              clientRegistrationRequest.firstName(),
+              clientRegistrationRequest.lastName(),
+              clientRegistrationRequest.photoUrl(),
+              clientRegistrationRequest.gender(),
+              clientRegistrationRequest.countryCode(),
+              clientRegistrationRequest.timezone(),
+              clientRegistrationRequest.biography(),
+              clientRegistrationRequest.icfLevel(),
+              clientRegistrationRequest.icfAcc(),
+              clientRegistrationRequest.icfPcc(),
+              clientRegistrationRequest.icfMcc(),
+              clientRegistrationRequest.icfActc(),
+              clientRegistrationRequest.credentialDetails(),
+              clientRegistrationRequest.domainCodes(),
+              clientRegistrationRequest.hourlyRate());
 
-    clientService.registerClient(command);
+      coachService.registerCoach(coachCommand);
+    } else {
+      LOGGER.info(
+          "Received client registration request for email={}",
+          clientRegistrationRequest.email());
+      ClientRegistrationCommand clientCommand =
+          new ClientRegistrationCommand(
+              clientRegistrationRequest.email(),
+              clientRegistrationRequest.password(),
+              clientRegistrationRequest.firstName(),
+              clientRegistrationRequest.lastName(),
+              clientRegistrationRequest.alias());
+
+      clientService.registerClient(clientCommand);
+    }
 
     AuthenticationResult authenticationResult =
         authService.authenticate(
@@ -84,9 +120,21 @@ public class AuthController {
             userSummaryDto);
 
     LOGGER.info(
-        "Completed client registration and issued JWT for userId={}",
-        authenticationResult.userId());
+        "Completed registration and issued JWT for userId={} (role={})",
+        authenticationResult.userId(),
+        authenticationResult.role());
     return ResponseEntity.status(HttpStatus.CREATED).body(loginResponse);
+  }
+
+  private boolean isCoachRegistration(ClientRegistrationRequest registrationRequest) {
+    return "COACH".equalsIgnoreCase(registrationRequest.role())
+        || StringUtils.isNotBlank(registrationRequest.icfLevel())
+        || Boolean.TRUE.equals(registrationRequest.icfAcc())
+        || Boolean.TRUE.equals(registrationRequest.icfPcc())
+        || Boolean.TRUE.equals(registrationRequest.icfMcc())
+        || Boolean.TRUE.equals(registrationRequest.icfActc())
+        || (registrationRequest.domainCodes() != null
+            && !registrationRequest.domainCodes().isEmpty());
   }
 
   /**

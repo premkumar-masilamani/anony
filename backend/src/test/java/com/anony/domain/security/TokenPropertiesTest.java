@@ -9,22 +9,21 @@ import org.junit.jupiter.api.Test;
 class TokenPropertiesTest {
 
   @Test
-  @DisplayName("Should validate successfully when secret and positive expiration seconds are provided")
+  @DisplayName("Should validate successfully when secret is provided and use constant JWT_EXPIRATION_SECONDS")
   void testValidateConfigurationSuccess() {
     String validSecret = "supersecretjwtkeythatisatleast256bitslongforhmacsha256signing!";
-    long validExpirationSeconds = 2592000L;
-    TokenProperties tokenProperties = new TokenProperties(validSecret, validExpirationSeconds);
+    TokenProperties tokenProperties = new TokenProperties(validSecret);
 
     tokenProperties.validateConfiguration();
 
     assertEquals(validSecret, tokenProperties.getSecret());
-    assertEquals(validExpirationSeconds, tokenProperties.getExpirationSeconds());
+    assertEquals(TokenProperties.JWT_EXPIRATION_SECONDS, tokenProperties.getExpirationSeconds());
   }
 
   @Test
   @DisplayName("Should throw IllegalStateException when secret is blank")
   void testValidateConfigurationFailsWhenSecretIsBlank() {
-    TokenProperties tokenProperties = new TokenProperties("   ", 2592000L);
+    TokenProperties tokenProperties = new TokenProperties("   ");
 
     assertThrows(IllegalStateException.class, tokenProperties::validateConfiguration);
   }
@@ -32,7 +31,7 @@ class TokenPropertiesTest {
   @Test
   @DisplayName("Should throw IllegalStateException when secret is unexpanded placeholder")
   void testValidateConfigurationFailsWhenSecretIsUnexpanded() {
-    TokenProperties tokenProperties = new TokenProperties("${JWT_SECRET}", 2592000L);
+    TokenProperties tokenProperties = new TokenProperties("${ANONY_JWT_SECRET}");
 
     assertThrows(IllegalStateException.class, tokenProperties::validateConfiguration);
   }
