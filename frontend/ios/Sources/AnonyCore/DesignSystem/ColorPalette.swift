@@ -22,8 +22,6 @@ public enum ColorPalette {
         endPoint: .bottomTrailing
     )
 
-
-
     public static let auraGlowGradient = RadialGradient(
         colors: [
             calmingCyan.opacity(0.35),
@@ -33,6 +31,28 @@ public enum ColorPalette {
         center: .center,
         startRadius: 5,
         endRadius: 90
+    )
+
+    // Distinct Coach Workspace Theme Tokens (Strictly derived from Tranquil Theme Palette)
+    public static let coachPrimaryAccent   = sageGreen
+    public static let coachSecondaryAccent = mutedLavender
+    public static let coachCardBorder      = sageGreen.opacity(0.22)
+
+    public static let coachBackgroundGradient = LinearGradient(
+        colors: [midnightSlate, elevatedCard, warmCharcoal],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    public static let coachAuraGlowGradient = RadialGradient(
+        colors: [
+            sageGreen.opacity(0.28),
+            mutedLavender.opacity(0.14),
+            Color.clear
+        ],
+        center: .topTrailing,
+        startRadius: 12,
+        endRadius: 240
     )
 }
 

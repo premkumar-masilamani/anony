@@ -219,7 +219,7 @@ struct CoachVerificationTests {
         #expect(verifiedFlow.currentFlowState == .verifiedDashboard)
 
         #expect(CoachDashboardView.DashboardTab.allCases.count == 3)
-        #expect(CoachDashboardView.DashboardTab.allCases == [.sessions, .availability, .profile])
+        #expect(CoachDashboardView.DashboardTab.allCases == [.availability, .sessions, .profile])
     }
 
     @Test("CoachVerificationViewModel applyUpdatedProfile updates profile and status message")
