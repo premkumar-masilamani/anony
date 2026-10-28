@@ -8,26 +8,10 @@ public protocol AuthServiceProtocol: Sendable {
     func fetchCoachProfile() async throws -> CoachProfileResponse
     func updateCoachProfile(payload: CoachUpdatePayload) async throws -> CoachProfileResponse
     func fetchClientProfile() async throws -> ClientProfileResponse
-    func publishCoachAvailabilities(slots: [CoachAvailabilitySlotPayload]) async throws -> [CoachAvailabilitySlotResponse]
     func fetchCoachAvailabilities(coachId: UUID, from: Date?, to: Date?) async throws -> [CoachAvailabilitySlotResponse]
 }
 
 extension AuthServiceProtocol {
-    public func publishCoachAvailabilities(slots: [CoachAvailabilitySlotPayload]) async throws -> [CoachAvailabilitySlotResponse] {
-        let coachId = UUID()
-        return slots.map { slot in
-            CoachAvailabilitySlotResponse(
-                slotId: slot.id,
-                coachId: coachId,
-                startAt: slot.startAt,
-                endAt: slot.endAt,
-                durationMinutes: slot.durationMinutes,
-                isFreePledge: slot.isFreePledge,
-                isBooked: false
-            )
-        }
-    }
-
     public func fetchCoachAvailabilities(coachId: UUID, from: Date?, to: Date?) async throws -> [CoachAvailabilitySlotResponse] {
         return []
     }
@@ -391,54 +375,6 @@ public final class RemoteAuthService: AuthServiceProtocol, Sendable {
             throw AuthError.unauthorized
         } else {
             let serverError = parseErrorMessage(from: data) ?? "Failed to fetch client profile with status code \(httpResponse.statusCode)."
-            throw AuthError.registrationFailed(serverError)
-        }
-    }
-
-    public func publishCoachAvailabilities(slots: [CoachAvailabilitySlotPayload]) async throws -> [CoachAvailabilitySlotResponse] {
-        guard let token = identityService.fetchToken(), !token.isEmpty else {
-            throw AuthError.unauthorized
-        }
-
-        let publishURL = APIEndpoints.url(for: APIEndpoints.coachMyAvailabilities, baseURL: baseURL)
-        var request = URLRequest(url: publishURL)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        do {
-            let payload = CoachAvailabilityPublishPayload(slots: slots)
-            request.httpBody = try encoder.encode(payload)
-        } catch {
-            throw AuthError.registrationFailed("Failed to encode availability slots payload.")
-        }
-
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await session.data(for: request)
-        } catch {
-            throw AuthError.registrationFailed("Network connection failure: \(error.localizedDescription)")
-        }
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AuthError.registrationFailed("Invalid server response.")
-        }
-
-        if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            guard let published = try? decoder.decode([CoachAvailabilitySlotResponse].self, from: data) else {
-                throw AuthError.registrationFailed("Failed to parse published availability slots.")
-            }
-            return published
-        } else if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-            throw AuthError.unauthorized
-        } else {
-            let serverError = parseErrorMessage(from: data) ?? "Failed to publish availability slots with status code \(httpResponse.statusCode)."
             throw AuthError.registrationFailed(serverError)
         }
     }

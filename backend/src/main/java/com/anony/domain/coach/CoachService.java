@@ -6,7 +6,7 @@ import java.util.UUID;
 
 /**
  * Service interface for coach onboarding, profile retrieval, credential management,
- * and availability slot publishing.
+ * and 30-day rolling availability generation and discovery.
  */
 public interface CoachService {
 
@@ -37,15 +37,13 @@ public interface CoachService {
   CoachProfileDetails getCoachProfileByUserId(UUID userId);
 
   /**
-   * Publishes availability slots for the authenticated coach after enforcing the 24-hour
-   * advance scheduling rule and the mandatory 1-hour monthly free session pledge rule.
+   * Generates concrete availability slots for all coaches for the next 30 days starting today,
+   * slicing each coach's weekly availability windows into 30-minute or 60-minute UTC slots and
+   * satisfying the mandatory 1-hour monthly free session pledge.
    *
-   * @param userId authenticated coach user identifier
-   * @param slotCommands list of availability slots to publish
-   * @return persisted availability slot details
+   * @return total number of newly created availability slots
    */
-  List<CoachAvailabilitySlotDetails> publishAvailabilities(
-      UUID userId, List<CoachAvailabilitySlotCommand> slotCommands);
+  int generateUpcomingAvailabilitiesForAllCoaches();
 
   /**
    * Retrieves unbooked availability slots for a specific coach within a UTC date range.

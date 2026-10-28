@@ -24,7 +24,6 @@ public enum APIEndpoints {
     public static let coachesRegister = "/api/v1/coaches/register"
     public static let coachesLogin = "/api/v1/coaches/login"
     public static let coachesMe = "/api/v1/coaches/me"
-    public static let coachMyAvailabilities = "/api/v1/coaches/me/availabilities"
     public static let favorites = "/api/v1/coaches/favorites"
 
     public static func coachDetails(id: UUID) -> String {

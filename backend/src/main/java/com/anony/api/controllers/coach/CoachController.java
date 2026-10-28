@@ -4,15 +4,12 @@ import com.anony.api.dtos.auth.ErrorResponse;
 import com.anony.api.dtos.auth.LoginRequest;
 import com.anony.api.dtos.auth.LoginResponse;
 import com.anony.api.dtos.auth.UserSummaryDto;
-import com.anony.api.dtos.coach.CoachAvailabilityPublishRequest;
 import com.anony.api.dtos.coach.CoachAvailabilitySlotDto;
-import com.anony.api.dtos.coach.CoachAvailabilitySlotRequest;
 import com.anony.api.dtos.coach.CoachProfileDto;
 import com.anony.api.dtos.coach.CoachRegistrationRequest;
 import com.anony.api.dtos.coach.CoachUpdateRequest;
 import com.anony.domain.auth.AuthService;
 import com.anony.domain.auth.AuthenticationResult;
-import com.anony.domain.coach.CoachAvailabilitySlotCommand;
 import com.anony.domain.coach.CoachAvailabilitySlotDetails;
 import com.anony.domain.coach.CoachProfileDetails;
 import com.anony.domain.coach.CoachRegistrationCommand;
@@ -41,7 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * REST controller managing coach registration, authentication, updates, profile verification status,
- * and availability slot management.
+ * and availability slot discovery.
  */
 @RestController
 @RequestMapping("/api/v1/coaches")
@@ -180,41 +177,6 @@ public class CoachController {
         CoachProfileDetails details =
             coachService.updateCoachProfile(authenticatedUser.userId(), command);
         return ResponseEntity.ok(toDto(details));
-      } else {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-      }
-    } else {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-  }
-
-  /**
-   * Publishes availability slots for the authenticated coach after enforcing the 24-hour
-   * advance rule and mandatory 1-hour monthly free session pledge quota.
-   *
-   * @param authenticatedUser authenticated security principal
-   * @param publishRequest batch request containing availability slots
-   * @return created list of published availability slot DTOs
-   */
-  @PostMapping("/me/availabilities")
-  public ResponseEntity<List<CoachAvailabilitySlotDto>> publishAvailabilities(
-      @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-      @Valid @RequestBody CoachAvailabilityPublishRequest publishRequest) {
-    if (authenticatedUser != null) {
-      if (authenticatedUser.role() == UserRole.COACH) {
-        List<CoachAvailabilitySlotCommand> slotCommands = new ArrayList<>();
-        for (CoachAvailabilitySlotRequest slotRequest : publishRequest.slots()) {
-          slotCommands.add(
-              new CoachAvailabilitySlotCommand(
-                  slotRequest.startAt(),
-                  slotRequest.endAt(),
-                  slotRequest.durationMinutes(),
-                  slotRequest.isFreePledge()));
-        }
-
-        List<CoachAvailabilitySlotDetails> publishedSlots =
-            coachService.publishAvailabilities(authenticatedUser.userId(), slotCommands);
-        return ResponseEntity.status(HttpStatus.CREATED).body(toSlotDtos(publishedSlots));
       } else {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
       }

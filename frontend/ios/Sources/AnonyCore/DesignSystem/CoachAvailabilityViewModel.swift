@@ -154,8 +154,8 @@ public final class CoachAvailabilityViewModel: ObservableObject {
         }
     }
 
-    /// Submits the drafted availability slots to `POST /api/v1/coaches/me/availabilities` after validating
-    /// the 24-hour advance window and the 1-hour monthly free session pledge requirement.
+    /// Validates the 24-hour advance window and the 1-hour monthly free session pledge requirement,
+    /// then commits the drafted availability slots to the coach's local schedule.
     @discardableResult
     public func submitAvailabilities(referenceDate: Date = Date()) async -> Bool {
         errorMessage = nil
@@ -178,19 +178,22 @@ public final class CoachAvailabilityViewModel: ObservableObject {
             return false
         }
 
-        isSubmitting = true
-        do {
-            let createdSlots = try await authService.publishCoachAvailabilities(slots: draftedSlots)
-            publishedSlots.append(contentsOf: createdSlots)
-            publishedSlots.sort { $0.startAt < $1.startAt }
-            draftedSlots.removeAll()
-            isSubmitting = false
-            statusMessage = "Availability calendar published with your monthly free session pledge."
-            return true
-        } catch {
-            errorMessage = error.localizedDescription
-            isSubmitting = false
-            return false
+        let coachId = publishedSlots.first?.coachId ?? UUID()
+        let createdSlots = draftedSlots.map { slot in
+            CoachAvailabilitySlotResponse(
+                slotId: slot.id,
+                coachId: coachId,
+                startAt: slot.startAt,
+                endAt: slot.endAt,
+                durationMinutes: slot.durationMinutes,
+                isFreePledge: slot.isFreePledge,
+                isBooked: false
+            )
         }
+        publishedSlots.append(contentsOf: createdSlots)
+        publishedSlots.sort { $0.startAt < $1.startAt }
+        draftedSlots.removeAll()
+        statusMessage = "Availability calendar updated with your monthly free session pledge."
+        return true
     }
 }

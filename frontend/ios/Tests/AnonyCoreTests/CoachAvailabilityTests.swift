@@ -34,10 +34,8 @@ private final class AvailabilityMockURLProtocol: URLProtocol, @unchecked Sendabl
 }
 
 private final class MockCoachAvailabilityAuthService: AuthServiceProtocol, @unchecked Sendable {
-    var publishedResponsesToReturn: [CoachAvailabilitySlotResponse] = []
     var fetchedResponsesToReturn: [CoachAvailabilitySlotResponse] = []
     var shouldThrowError: Bool = false
-    var lastSubmittedSlots: [CoachAvailabilitySlotPayload] = []
 
     func register(email: String, password: String) async throws -> AuthSession {
         AuthSession(token: "t", alias: "a", avatarId: "av", email: email, role: "COACH")
@@ -91,28 +89,6 @@ private final class MockCoachAvailabilityAuthService: AuthServiceProtocol, @unch
             isOnboarded: true,
             createdAt: Date()
         )
-    }
-
-    func publishCoachAvailabilities(slots: [CoachAvailabilitySlotPayload]) async throws -> [CoachAvailabilitySlotResponse] {
-        if shouldThrowError {
-            throw AuthError.registrationFailed("Server rejected slots.")
-        }
-        lastSubmittedSlots = slots
-        if !publishedResponsesToReturn.isEmpty {
-            return publishedResponsesToReturn
-        }
-        let coachId = UUID()
-        return slots.map { slot in
-            CoachAvailabilitySlotResponse(
-                slotId: slot.id,
-                coachId: coachId,
-                startAt: slot.startAt,
-                endAt: slot.endAt,
-                durationMinutes: slot.durationMinutes,
-                isFreePledge: slot.isFreePledge,
-                isBooked: false
-            )
-        }
     }
 
     func fetchCoachAvailabilities(coachId: UUID, from: Date?, to: Date?) async throws -> [CoachAvailabilitySlotResponse] {
@@ -232,10 +208,9 @@ struct CoachAvailabilityTests {
         #expect(viewModel.draftedSlots.count == 3)
         #expect(viewModel.pledgedFreeMinutes == 60)
 
-        // 6. Submit availabilities to backend -> succeeds and moves slots to publishedSlots
+        // 6. Submit availabilities -> succeeds and moves slots to publishedSlots
         let submitted = await viewModel.submitAvailabilities(referenceDate: referenceNow)
         #expect(submitted == true)
-        #expect(mockService.lastSubmittedSlots.count == 3)
         #expect(viewModel.draftedSlots.isEmpty)
         #expect(viewModel.publishedSlots.count == 3)
         #expect(viewModel.pledgedFreeMinutes == 60)
@@ -294,7 +269,7 @@ struct CoachAvailabilityTests {
         #expect(!mirror.children.isEmpty)
     }
 
-    @Test("RemoteAuthService publishes and fetches coach availabilities via MockURLProtocol")
+    @Test("RemoteAuthService fetches coach availabilities via MockURLProtocol")
     func testRemoteAuthServiceAvailabilityEndpoints() async throws {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [AvailabilityMockURLProtocol.self]
@@ -316,45 +291,6 @@ struct CoachAvailabilityTests {
         let coachId = UUID(uuidString: "22222222-3333-4444-5555-666666666666")!
         let slotId = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
         let startAt = Date(timeIntervalSince1970: 1_809_957_600)
-
-        AvailabilityMockURLProtocol.requestHandler = { request in
-            #expect(request.url?.path == "/api/v1/coaches/me/availabilities")
-            #expect(request.httpMethod == "POST")
-            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer coach-jwt-token")
-
-            let responseJSON = """
-            [
-              {
-                "slotId": "\(slotId.uuidString)",
-                "coachId": "\(coachId.uuidString)",
-                "startAt": "2027-05-10T14:00:00Z",
-                "endAt": "2027-05-10T15:00:00Z",
-                "durationMinutes": 60,
-                "isFreePledge": true,
-                "is_free_pledge": true,
-                "isBooked": false
-              }
-            ]
-            """.data(using: .utf8)!
-            let httpResponse = HTTPURLResponse(
-                url: request.url!,
-                statusCode: 201,
-                httpVersion: nil,
-                headerFields: ["Content-Type": "application/json"]
-            )!
-            return (httpResponse, responseJSON)
-        }
-
-        let payload = CoachAvailabilitySlotPayload(
-            id: slotId,
-            startAt: startAt,
-            durationMinutes: 60,
-            isFreePledge: true
-        )
-        let published = try await authService.publishCoachAvailabilities(slots: [payload])
-        #expect(published.count == 1)
-        #expect(published[0].slotId == slotId)
-        #expect(published[0].isFreePledge == true)
 
         AvailabilityMockURLProtocol.requestHandler = { request in
             #expect(request.url?.path == "/api/v1/coaches/\(coachId.uuidString)/availabilities")

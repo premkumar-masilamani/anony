@@ -22,7 +22,6 @@ struct APIEndpointsTests {
         #expect(APIEndpoints.coachesRegister == "/api/v1/coaches/register")
         #expect(APIEndpoints.coachesLogin == "/api/v1/coaches/login")
         #expect(APIEndpoints.coachesMe == "/api/v1/coaches/me")
-        #expect(APIEndpoints.coachMyAvailabilities == "/api/v1/coaches/me/availabilities")
         #expect(APIEndpoints.favorites == "/api/v1/coaches/favorites")
         #expect(APIEndpoints.blindMatch == "/api/v1/sessions/blind-match")
         #expect(APIEndpoints.bookings == "/api/v1/bookings")
