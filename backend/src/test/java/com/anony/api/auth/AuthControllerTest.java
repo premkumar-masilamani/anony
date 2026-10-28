@@ -184,6 +184,9 @@ class AuthControllerTest {
             "Courageous Owl",
             true,
             false,
+            true,
+            0,
+            null,
             Instant.now());
 
     when(clientService.registerClient(any(ClientRegistrationCommand.class)))

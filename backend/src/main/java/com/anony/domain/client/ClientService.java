@@ -3,7 +3,7 @@ package com.anony.domain.client;
 import java.util.UUID;
 
 /**
- * Service interface managing client registration and profile lookups.
+ * Service interface managing client registration, profile lookups, and privacy mode toggles.
  */
 public interface ClientService {
 
@@ -22,4 +22,13 @@ public interface ClientService {
    * @return current client profile details
    */
   ClientProfileDetails getClientProfileByUserId(UUID userId);
+
+  /**
+   * Updates the privacy and anonymity mode for the specified client.
+   *
+   * @param userId user identifier
+   * @param isAnonymousMode new anonymity mode state
+   * @return updated client profile details
+   */
+  ClientProfileDetails updatePrivacyMode(UUID userId, boolean isAnonymousMode);
 }

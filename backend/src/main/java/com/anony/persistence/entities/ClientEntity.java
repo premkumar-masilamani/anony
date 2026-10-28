@@ -53,6 +53,15 @@ public class ClientEntity {
   @Column(name = "is_onboarded", nullable = false)
   private Boolean onboarded;
 
+  @Column(name = "is_anonymous_mode", nullable = false)
+  private Boolean anonymousMode;
+
+  @Column(name = "free_sessions_count", nullable = false)
+  private Integer freeSessionsCount;
+
+  @Column(name = "last_free_session_at")
+  private Instant lastFreeSessionAt;
+
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;

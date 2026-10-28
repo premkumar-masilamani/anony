@@ -32,6 +32,7 @@ make lint
 - Use `%n` or direct string concatenation rather than text block `.formatted(...)` with implicit `\n` in test payloads to avoid SpotBugs `VA_FORMAT_STRING_USES_NEWLINE` warnings.
 - Keep PMD tasks configured with `classpath = files()` and exclude `ImplicitFunctionalInterface` in `pmd-ruleset.xml` to prevent ASM bytecode inspection `StackOverflowError` on Java 27 classes.
 - When creating coach profiles, preserve the `coaches_icf_credential_check` constraint requiring at least one ICF credential boolean (`icf_acc`, `icf_pcc`, `icf_mcc`, or `icf_actc`) to be true, and ensure `user_role` matches `COACH` to satisfy the composite foreign key `(user_id, user_role)`.
+- When enforcing fair-use quotas (e.g. 14-day cadence cooldown, 6-session lifetime cap), throw domain exceptions translated to HTTP 409 Conflict with structured DTO responses containing exact remaining cooldown days and suggested migration actions.
 
 ### Ask first
 - Adding third-party libraries/dependencies to `build.gradle`.

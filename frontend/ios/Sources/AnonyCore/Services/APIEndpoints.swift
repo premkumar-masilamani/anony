@@ -39,13 +39,17 @@ public enum APIEndpoints {
     }
 
     // MARK: - Matching, Sessions & Bookings
-    public static let blindMatch = "/api/v1/match/blind"
+    public static let blindMatch = "/api/v1/sessions/blind-match"
     public static let sessions = "/api/v1/sessions"
     public static let bookings = "/api/v1/bookings"
 
     public static func sessionDetails(id: UUID) -> String {
         "/api/v1/sessions/\(id.uuidString)"
     }
+
+    // MARK: - Clients & Profile
+    public static let clientProfile = "/api/v1/clients/me/profile"
+    public static let clientPrivacyMode = "/api/v1/clients/me/privacy-mode"
 
     // MARK: - URL Resolution Helper
     /// Resolves the absolute URL using the provided base URL or active APIConfig.currentBaseURL.

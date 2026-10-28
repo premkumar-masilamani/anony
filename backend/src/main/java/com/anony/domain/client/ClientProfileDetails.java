@@ -14,6 +14,9 @@ import java.util.UUID;
  * @param alias client procedural anonymous alias
  * @param isAnonymous whether client participates anonymously
  * @param isOnboarded whether client has completed onboarding
+ * @param isAnonymousMode whether client has enabled blind matching anonymous mode
+ * @param freeSessionsCount number of pro-bono sessions utilized
+ * @param lastFreeSessionAt timestamp of the last pro-bono session booked
  * @param createdAt timestamp when client profile was created
  */
 public record ClientProfileDetails(
@@ -25,4 +28,7 @@ public record ClientProfileDetails(
     String alias,
     Boolean isAnonymous,
     Boolean isOnboarded,
+    Boolean isAnonymousMode,
+    Integer freeSessionsCount,
+    Instant lastFreeSessionAt,
     Instant createdAt) {}
