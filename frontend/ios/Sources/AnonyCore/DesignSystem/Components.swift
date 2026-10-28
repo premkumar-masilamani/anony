@@ -338,10 +338,51 @@ public struct AvatarCircleView: View {
     }
 
     public struct ProceduralParameters: Sendable, Equatable {
+        public static let curatedSymbols: [String] = [
+            "bird.fill",
+            "hare.fill",
+            "tortoise.fill",
+            "fish.fill",
+            "pawprint.fill",
+            "tree.fill",
+            "leaf.fill",
+            "drop.fill",
+            "wind",
+            "cloud.fill",
+            "mountain.2.fill",
+            "moon.stars.fill"
+        ]
+
+        private static let nounSymbolMappings: [(keyword: String, symbol: String)] = [
+            ("Owl", "bird.fill"),
+            ("Finch", "bird.fill"),
+            ("Falcon", "bird.fill"),
+            ("Bird", "bird.fill"),
+            ("Hare", "hare.fill"),
+            ("Tortoise", "tortoise.fill"),
+            ("Fish", "fish.fill"),
+            ("Fox", "pawprint.fill"),
+            ("Wolf", "pawprint.fill"),
+            ("Otter", "pawprint.fill"),
+            ("Willow", "tree.fill"),
+            ("Pine", "tree.fill"),
+            ("Meadow", "leaf.fill"),
+            ("Leaf", "leaf.fill"),
+            ("River", "drop.fill"),
+            ("Creek", "drop.fill"),
+            ("Breeze", "wind"),
+            ("Cloud", "cloud.fill"),
+            ("Peak", "mountain.2.fill"),
+            ("Stone", "mountain.2.fill"),
+            ("Star", "moon.stars.fill"),
+            ("Moon", "moon.stars.fill")
+        ]
+
         public let primaryColorIndex: Int
         public let secondaryColorIndex: Int
         public let motifIndex: Int
         public let rotationAngle: Double
+        public let symbolName: String
 
         public static func generate(from seed: String) -> ProceduralParameters {
             var hash: UInt64 = 5381
@@ -354,13 +395,25 @@ public struct AvatarCircleView: View {
             let safeSecondary = (primary == secondary) ? ((secondary + 1) % 3) : secondary
             let motif = Int((hash / 13) % 3) // 0: Concentric calm, 1: Geometric arcs, 2: Serene diamond
             let angle = Double((hash / 29) % 360)
+            let resolvedSymbol = resolveSymbolName(from: seed, hash: hash)
 
             return ProceduralParameters(
                 primaryColorIndex: primary,
                 secondaryColorIndex: safeSecondary,
                 motifIndex: motif,
-                rotationAngle: angle
+                rotationAngle: angle,
+                symbolName: resolvedSymbol
             )
+        }
+
+        private static func resolveSymbolName(from seed: String, hash: UInt64) -> String {
+            for mapping in nounSymbolMappings {
+                if seed.localizedCaseInsensitiveContains(mapping.keyword) {
+                    return mapping.symbol
+                }
+            }
+            let fallbackIndex = Int((hash / 37) % UInt64(curatedSymbols.count))
+            return curatedSymbols[fallbackIndex]
         }
     }
 
@@ -417,48 +470,51 @@ public struct AvatarCircleView: View {
                         .stroke(primaryColor.opacity(0.35), lineWidth: 1.5)
                 )
 
-            // Inner procedural zero-PII geometric motifs
+            // Inner procedural zero-PII geometric motifs + native iOS SF Symbol glyph
             Group {
                 switch params.motifIndex {
                 case 0:
-                    // Concentric soothing rings
-                    ZStack {
-                        Circle()
-                            .stroke(secondaryColor.opacity(0.4), lineWidth: size.diameter * 0.08)
-                            .frame(width: size.diameter * 0.65, height: size.diameter * 0.65)
-                        Circle()
-                            .fill(primaryColor.opacity(0.8))
-                            .frame(width: size.diameter * 0.32, height: size.diameter * 0.32)
-                    }
+                    // Concentric soothing ring backdrop
+                    Circle()
+                        .stroke(secondaryColor.opacity(0.28), lineWidth: size.diameter * 0.06)
+                        .frame(width: size.diameter * 0.72, height: size.diameter * 0.72)
                 case 1:
-                    // Soft interlocking crescent arcs
+                    // Soft interlocking crescent arcs backdrop
                     ZStack {
                         Circle()
                             .trim(from: 0.1, to: 0.6)
-                            .stroke(primaryColor, style: StrokeStyle(lineWidth: size.diameter * 0.08, lineCap: .round))
-                            .frame(width: size.diameter * 0.6, height: size.diameter * 0.6)
+                            .stroke(primaryColor.opacity(0.35), style: StrokeStyle(lineWidth: size.diameter * 0.06, lineCap: .round))
+                            .frame(width: size.diameter * 0.74, height: size.diameter * 0.74)
                             .rotationEffect(.degrees(params.rotationAngle))
                         Circle()
                             .trim(from: 0.4, to: 0.9)
-                            .stroke(secondaryColor, style: StrokeStyle(lineWidth: size.diameter * 0.08, lineCap: .round))
-                            .frame(width: size.diameter * 0.42, height: size.diameter * 0.42)
+                            .stroke(secondaryColor.opacity(0.35), style: StrokeStyle(lineWidth: size.diameter * 0.06, lineCap: .round))
+                            .frame(width: size.diameter * 0.62, height: size.diameter * 0.62)
                             .rotationEffect(.degrees(-params.rotationAngle))
                     }
                 default:
-                    // Serene centered diamond motif
-                    ZStack {
-                        RoundedRectangle(cornerRadius: size.diameter * 0.1)
-                            .fill(primaryColor.opacity(0.65))
-                            .frame(width: size.diameter * 0.4, height: size.diameter * 0.4)
-                            .rotationEffect(.degrees(45 + params.rotationAngle))
-                        Circle()
-                            .fill(secondaryColor)
-                            .frame(width: size.diameter * 0.18, height: size.diameter * 0.18)
-                    }
+                    // Serene rotated diamond halo backdrop
+                    RoundedRectangle(cornerRadius: size.diameter * 0.12)
+                        .stroke(secondaryColor.opacity(0.28), lineWidth: size.diameter * 0.05)
+                        .frame(width: size.diameter * 0.56, height: size.diameter * 0.56)
+                        .rotationEffect(.degrees(45 + params.rotationAngle))
                 }
             }
+
+            Image(systemName: params.symbolName)
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(primaryColor, secondaryColor)
+                .font(.system(size: size.diameter * 0.42, weight: .medium))
         }
         .frame(width: size.diameter, height: size.diameter)
-        .accessibilityLabel("Procedural avatar for anonymous user")
+        .accessibilityLabel("Procedural avatar for \(seed)")
+    }
+
+    /// Renders the procedural avatar view into a native CGImage using SwiftUI's built-in ImageRenderer.
+    @MainActor
+    public func renderCGImage(scale: CGFloat = 2.0) -> CGImage? {
+        let renderer = ImageRenderer(content: self)
+        renderer.scale = scale
+        return renderer.cgImage
     }
 }

@@ -91,11 +91,8 @@ public final class RemoteAuthService: AuthServiceProtocol, Sendable {
                 throw AuthError.registrationFailed("Failed to parse authentication response.")
             }
 
-            let seed = abs(email.hashValue) % 1000
-            let tranquilPrefixes = ["Tranquil", "Serene", "Calm", "Gentle", "Peaceful", "Silent", "Quiet"]
-            let tranquilNouns = ["River", "Pine", "Willow", "Breeze", "Creek", "Stone", "Meadow"]
-            let alias = "\(tranquilPrefixes[seed % tranquilPrefixes.count])\(tranquilNouns[(seed / 7) % tranquilNouns.count])\(seed % 100)"
-            let avatarId = "avatar-\(loginPayload.user.userId.uuidString.prefix(8).lowercased())"
+            let alias = identityService.fetchAlias() ?? ClientProfile.generateTranquilAlias()
+            let avatarId = alias
 
             let authSession = AuthSession(
                 token: loginPayload.token,
@@ -160,7 +157,8 @@ public final class RemoteAuthService: AuthServiceProtocol, Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let requestBody = ["email": email, "password": password]
+        let generatedAlias = ClientProfile.generateTranquilAlias()
+        let requestBody = ["email": email, "password": password, "alias": generatedAlias]
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
         let data: Data
@@ -181,11 +179,8 @@ public final class RemoteAuthService: AuthServiceProtocol, Sendable {
                 throw AuthError.registrationFailed("Failed to parse registration response.")
             }
 
-            let seed = abs(email.hashValue) % 1000
-            let tranquilPrefixes = ["Tranquil", "Serene", "Calm", "Gentle", "Peaceful", "Silent", "Quiet"]
-            let tranquilNouns = ["River", "Pine", "Willow", "Breeze", "Creek", "Stone", "Meadow"]
-            let alias = "\(tranquilPrefixes[seed % tranquilPrefixes.count])\(tranquilNouns[(seed / 7) % tranquilNouns.count])\(seed % 100)"
-            let avatarId = "avatar-\(loginPayload.user.userId.uuidString.prefix(8).lowercased())"
+            let alias = generatedAlias
+            let avatarId = alias
 
             let authSession = AuthSession(
                 token: loginPayload.token,

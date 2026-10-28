@@ -87,7 +87,7 @@ class DefaultClientServiceTest {
   }
 
   @Test
-  @DisplayName("registerClient should default blank firstName, lastName, and alias")
+  @DisplayName("registerClient should default blank firstName, lastName, and generate procedural alias")
   void testRegisterClientSuccessWithDefaults() {
     when(userRepository.findByEmailIgnoreCase("blank@example.com")).thenReturn(Optional.empty());
     when(passwordService.hashPassword(anyString())).thenReturn("hashed");
@@ -98,16 +98,14 @@ class DefaultClientServiceTest {
     savedUser.setRole(UserRole.CLIENT);
     when(userRepository.save(any(UserEntity.class))).thenReturn(savedUser);
 
-    ClientEntity savedClient = new ClientEntity();
-    savedClient.setClientId(UUID.randomUUID());
-    savedClient.setUser(savedUser);
-    savedClient.setFirstName("Anonymous");
-    savedClient.setLastName("Client");
-    savedClient.setAlias("Courageous Client");
-    savedClient.setAnonymous(true);
-    savedClient.setOnboarded(false);
-    savedClient.setCreatedAt(Instant.now());
-    when(clientRepository.save(any(ClientEntity.class))).thenReturn(savedClient);
+    when(clientRepository.save(any(ClientEntity.class)))
+        .thenAnswer(
+            invocation -> {
+              ClientEntity entityToSave = invocation.getArgument(0);
+              entityToSave.setClientId(UUID.randomUUID());
+              entityToSave.setCreatedAt(Instant.now());
+              return entityToSave;
+            });
 
     ClientRegistrationCommand command =
         new ClientRegistrationCommand("blank@example.com", "ClientPass#123", "  ", "", null);
@@ -117,7 +115,11 @@ class DefaultClientServiceTest {
     assertNotNull(details);
     assertEquals("Anonymous", details.firstName());
     assertEquals("Client", details.lastName());
-    assertEquals("Courageous Client", details.alias());
+    assertNotNull(details.alias());
+    String[] aliasParts = details.alias().split(" ");
+    assertEquals(2, aliasParts.length);
+    assertTrue(ProceduralAliasGenerator.ADJECTIVES.contains(aliasParts[0]));
+    assertTrue(ProceduralAliasGenerator.NOUNS.contains(aliasParts[1]));
   }
 
   @Test
@@ -187,5 +189,44 @@ class DefaultClientServiceTest {
     when(clientRepository.findByUser_UserId(unknownUserId)).thenReturn(Optional.empty());
     assertThrows(
         IllegalStateException.class, () -> clientService.getClientProfileByUserId(unknownUserId));
+  }
+
+  @Test
+  @DisplayName("updatePrivacyMode should update anonymousMode and return updated profile")
+  void testUpdatePrivacyModeSuccessAndFailures() {
+    UUID userId = UUID.randomUUID();
+    UUID clientId = UUID.randomUUID();
+
+    UserEntity userEntity = new UserEntity();
+    userEntity.setUserId(userId);
+    userEntity.setEmail("client@example.com");
+
+    ClientEntity clientEntity = new ClientEntity();
+    clientEntity.setClientId(clientId);
+    clientEntity.setUser(userEntity);
+    clientEntity.setFirstName("Arjun");
+    clientEntity.setLastName("Mehta");
+    clientEntity.setAlias("Courageous Owl");
+    clientEntity.setAnonymous(true);
+    clientEntity.setOnboarded(true);
+    clientEntity.setAnonymousMode(true);
+    clientEntity.setFreeSessionsCount(1);
+    clientEntity.setCreatedAt(Instant.now());
+
+    when(clientRepository.findByUser_UserId(userId)).thenReturn(Optional.of(clientEntity));
+    when(clientRepository.save(any(ClientEntity.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    ClientProfileDetails updatedDetails = clientService.updatePrivacyMode(userId, false);
+    assertNotNull(updatedDetails);
+    assertEquals(false, updatedDetails.isAnonymousMode());
+
+    assertThrows(
+        IllegalArgumentException.class, () -> clientService.updatePrivacyMode(null, true));
+
+    UUID missingUserId = UUID.randomUUID();
+    when(clientRepository.findByUser_UserId(missingUserId)).thenReturn(Optional.empty());
+    assertThrows(
+        IllegalStateException.class, () -> clientService.updatePrivacyMode(missingUserId, true));
   }
 }

@@ -66,11 +66,16 @@ struct ClientProfileTests {
 
     @Test("ClientProfile procedural alias generator generates tranquil pseudonyms")
     func testProceduralAliasGenerator() {
-        let alias1 = ClientProfile.generateTranquilAlias()
-        let alias2 = ClientProfile.generateTranquilAlias()
+        for _ in 0..<25 {
+            let generatedAlias = ClientProfile.generateTranquilAlias()
+            let parts = generatedAlias.split(separator: " ").map(String.init)
+            #expect(parts.count == 2)
+            #expect(ClientProfile.adjectives.contains(parts[0]))
+            #expect(ClientProfile.nouns.contains(parts[1]))
 
-        #expect(!alias1.isEmpty)
-        #expect(!alias2.isEmpty)
+            let avatarParams = AvatarCircleView.ProceduralParameters.generate(from: generatedAlias)
+            #expect(AvatarCircleView.ProceduralParameters.curatedSymbols.contains(avatarParams.symbolName))
+        }
     }
 
     @Test("MockProfileService saves and retrieves profile and syncs privacy mode")
