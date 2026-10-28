@@ -1033,6 +1033,25 @@ public struct MySessionsView: View {
                     activeSafeRoomBanner(session: activeSession, token: token)
                 }
 
+                if let success = viewModel.reflectionSuccessMessage {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(ColorPalette.sageGreen)
+                        Text(success)
+                            .font(.footnote)
+                            .foregroundStyle(ColorPalette.textPrimary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(ColorPalette.sageGreen.opacity(0.15))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(ColorPalette.sageGreen.opacity(0.3), lineWidth: 1)
+                    )
+                }
+
                 if viewModel.sessions.isEmpty {
                     emptyState
                 } else {
@@ -1049,6 +1068,21 @@ public struct MySessionsView: View {
         }
         .onReceive(countdownTimer) { now in
             viewModel.tick(to: now)
+        }
+        .sheet(isPresented: $viewModel.showReflectionSheet) {
+            if let targetSession = viewModel.pendingReflectionSession {
+                PostSessionReflectionView(
+                    session: targetSession,
+                    onSave: { reflection in
+                        Task {
+                            await viewModel.saveReflection(reflection)
+                        }
+                    },
+                    onDismiss: {
+                        viewModel.dismissReflection()
+                    }
+                )
+            }
         }
     }
 
@@ -1125,7 +1159,7 @@ public struct MySessionsView: View {
         ) {
             VStack(alignment: .leading, spacing: 14) {
                 if let alert {
-                    reminderAlertBanner(alert)
+                    reminderAlertBanner(alert, session: session)
                 }
 
                 HStack(spacing: 12) {
@@ -1210,34 +1244,80 @@ public struct MySessionsView: View {
                     }
                 }
 
-                AnonyButton(
-                    title: "Enter Safe Room",
-                    systemImage: isSafeRoomOpen ? "lock.shield.fill" : "clock.badge",
-                    variant: isSafeRoomOpen ? .primary : .secondary,
-                    size: .medium,
-                    isLoading: isConnectingThisSession,
-                    isDisabled: !isSafeRoomOpen
-                ) {
-                    Task {
-                        await viewModel.enterSafeRoom(for: session)
+                if session.status == .completed {
+                    if !session.hasReflection {
+                        AnonyButton(
+                            title: "Reflect & Rate Session",
+                            systemImage: "star.fill",
+                            variant: .primary,
+                            size: .medium
+                        ) {
+                            viewModel.triggerPostSessionReflection(for: session)
+                        }
+                    } else {
+                        HStack(spacing: 8) {
+                            TagPillView(
+                                text: "Reflection & Testimonial Saved",
+                                systemImage: "checkmark.seal.fill",
+                                variant: .sage
+                            )
+                            Spacer()
+                        }
+                    }
+                } else {
+                    AnonyButton(
+                        title: "Enter Safe Room",
+                        systemImage: isSafeRoomOpen ? "lock.shield.fill" : "clock.badge",
+                        variant: isSafeRoomOpen ? .primary : .secondary,
+                        size: .medium,
+                        isLoading: isConnectingThisSession,
+                        isDisabled: !isSafeRoomOpen
+                    ) {
+                        Task {
+                            await viewModel.enterSafeRoom(for: session)
+                        }
                     }
                 }
             }
         }
     }
 
-    private func reminderAlertBanner(_ alert: SessionReminderAlert) -> some View {
-        let accentColor: Color
+    private func reminderAlertBanner(_ alert: SessionReminderAlert, session: CoachingSession) -> some View {
+        let accentColor = alertAccentColor(for: alert)
+        let isReflection = isReflectionAlert(alert)
+
+        return Button {
+            if isReflection {
+                viewModel.triggerPostSessionReflection(for: session)
+            }
+        } label: {
+            alertBannerContent(alert: alert, accentColor: accentColor, isReflection: isReflection)
+        }
+        .buttonStyle(.plain)
+        .disabled(!isReflection)
+    }
+
+    private func alertAccentColor(for alert: SessionReminderAlert) -> Color {
         switch alert {
         case .oneDayBefore:
-            accentColor = ColorPalette.mutedLavender
+            return ColorPalette.mutedLavender
         case .twoHoursBefore:
-            accentColor = ColorPalette.calmingCyan
-        case .safeRoomOpen:
-            accentColor = ColorPalette.sageGreen
+            return ColorPalette.calmingCyan
+        case .safeRoomOpen, .postSessionReflection:
+            return ColorPalette.sageGreen
         }
+    }
 
-        return HStack(spacing: 10) {
+    private func isReflectionAlert(_ alert: SessionReminderAlert) -> Bool {
+        if case .postSessionReflection = alert {
+            return true
+        }
+        return false
+    }
+
+    @ViewBuilder
+    private func alertBannerContent(alert: SessionReminderAlert, accentColor: Color, isReflection: Bool) -> some View {
+        HStack(spacing: 10) {
             if alert == .safeRoomOpen {
                 PulsingAuraView(color: accentColor, diameter: 22, cycleDuration: 3.5)
             } else {
@@ -1252,6 +1332,12 @@ public struct MySessionsView: View {
                 .foregroundStyle(ColorPalette.textPrimary)
 
             Spacer(minLength: 0)
+
+            if isReflection {
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(ColorPalette.textMuted)
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)

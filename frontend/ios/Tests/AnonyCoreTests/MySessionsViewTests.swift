@@ -11,7 +11,8 @@ struct MySessionsViewTests {
     private func makeSession(
         coachAlias: String = "Elena",
         scheduledOffsetSeconds: TimeInterval,
-        status: SessionStatus = .confirmed
+        status: SessionStatus = .confirmed,
+        hasReflection: Bool = false
     ) -> CoachingSession {
         CoachingSession(
             id: UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!,
@@ -22,7 +23,8 @@ struct MySessionsViewTests {
             scheduledDate: baseReferenceDate.addingTimeInterval(scheduledOffsetSeconds),
             timeSlot: "3:00 PM",
             timeZoneIdentifier: "UTC",
-            status: status
+            status: status,
+            hasReflection: hasReflection
         )
     }
 
@@ -84,16 +86,18 @@ struct MySessionsViewTests {
     func testMoreThanOneDayBeforeOrInactiveHasNoReminder() {
         let session3Days = makeSession(scheduledOffsetSeconds: 3 * 24 * 3600)
         let cancelledSession = makeSession(scheduledOffsetSeconds: 5 * 60, status: .cancelled)
-        let completedSession = makeSession(scheduledOffsetSeconds: 5 * 60, status: .completed)
+        let completedSessionWithReflection = makeSession(scheduledOffsetSeconds: 5 * 60, status: .completed, hasReflection: true)
+        let completedPendingReflection = makeSession(scheduledOffsetSeconds: 5 * 60, status: .completed, hasReflection: false)
 
         let viewModel = MySessionsViewModel(
-            sessions: [session3Days, cancelledSession, completedSession],
+            sessions: [session3Days, cancelledSession, completedSessionWithReflection, completedPendingReflection],
             currentDate: baseReferenceDate
         )
 
         #expect(viewModel.reminderAlert(for: session3Days) == nil)
         #expect(viewModel.reminderAlert(for: cancelledSession) == nil)
-        #expect(viewModel.reminderAlert(for: completedSession) == nil)
+        #expect(viewModel.reminderAlert(for: completedSessionWithReflection) == nil)
+        #expect(viewModel.reminderAlert(for: completedPendingReflection) == .postSessionReflection(coachName: "Elena"))
     }
 
     // MARK: - Countdown Timer Formatting
@@ -170,6 +174,89 @@ struct MySessionsViewTests {
         await viewModel.leaveSafeRoom()
         #expect(viewModel.connectionState == .disconnected)
         #expect(viewModel.activeSession == nil)
+        #expect(viewModel.showReflectionSheet == true)
+        #expect(viewModel.pendingReflectionSession?.id == openSession.id)
+    }
+
+    @Test("leaveSafeRoom triggers reflection sheet and saveReflection completes session reflection")
+    @MainActor
+    func testLeaveSafeRoomTriggersReflectionAndSave() async {
+        let roomManager = LiveKitRoomManager()
+        let openSession = makeSession(coachAlias: "Elena", scheduledOffsetSeconds: 5 * 60)
+        let reflectionService = SessionReflectionService(storageIdentifier: "test.my_sessions.\(UUID().uuidString)")
+        let viewModel = MySessionsViewModel(
+            sessions: [openSession],
+            currentDate: baseReferenceDate,
+            safeRoomService: roomManager,
+            reflectionService: reflectionService
+        )
+
+        await viewModel.enterSafeRoom(for: openSession)
+        await viewModel.leaveSafeRoom()
+
+        #expect(viewModel.showReflectionSheet == true)
+        #expect(viewModel.pendingReflectionSession?.id == openSession.id)
+        #expect(viewModel.sessions.first?.status == .completed)
+        #expect(viewModel.sessions.first?.hasReflection == false)
+
+        // Save reflection
+        let reflection = SessionReflection(
+            sessionId: openSession.id,
+            coachAlias: "Elena",
+            rating: 5,
+            publicTestimonial: "Insightful and grounding conversation.",
+            privateReflectionNote: "Personal note: Maintain daily breathing practice.",
+            quickTags: ["Clarity", "Calm"]
+        )
+
+        await viewModel.saveReflection(reflection)
+
+        #expect(viewModel.showReflectionSheet == false)
+        #expect(viewModel.pendingReflectionSession == nil)
+        #expect(viewModel.reflectionSuccessMessage != nil)
+        #expect(viewModel.sessions.first?.hasReflection == true)
+        #expect(viewModel.sessions.first?.reflectionId == reflection.id)
+
+        // Stored reflection is retrievable
+        let stored = await reflectionService.getReflection(for: openSession.id)
+        #expect(stored?.rating == 5)
+        #expect(stored?.privateReflectionNote == "Personal note: Maintain daily breathing practice.")
+
+        await reflectionService.clearStorage()
+    }
+
+    @Test("handleNotificationEvent with APNs postSessionReflection opens reflection flow")
+    @MainActor
+    func testNotificationEventPostSessionReflection() {
+        let session = makeSession(coachAlias: "Marcus", scheduledOffsetSeconds: -3600, status: .completed)
+        let viewModel = MySessionsViewModel(sessions: [session], currentDate: baseReferenceDate)
+
+        #expect(viewModel.showReflectionSheet == false)
+
+        viewModel.handleNotificationEvent(.postSessionReflection(sessionId: session.id, coachAlias: "Marcus"))
+
+        #expect(viewModel.showReflectionSheet == true)
+        #expect(viewModel.pendingReflectionSession?.id == session.id)
+        #expect(viewModel.pendingReflectionSession?.coachAlias == "Marcus")
+
+        viewModel.dismissReflection()
+        #expect(viewModel.showReflectionSheet == false)
+        #expect(viewModel.pendingReflectionSession == nil)
+    }
+
+    @Test("PostSessionReflectionView and StarRatingView instantiate cleanly on MainActor")
+    @MainActor
+    func testPostSessionReflectionViewInstantiation() {
+        let session = makeSession(coachAlias: "Elena", scheduledOffsetSeconds: -100, status: .completed)
+        let reflectionView = PostSessionReflectionView(
+            session: session,
+            initialRating: 4,
+            onSave: { _ in },
+            onDismiss: { }
+        )
+
+        let mirror = Mirror(reflecting: reflectionView)
+        #expect(mirror.children.contains(where: { $0.label == "session" }))
     }
 
     @Test("Enter Safe Room rejects WebRTC room connection when more than 10 minutes before start")

@@ -53,6 +53,14 @@ public enum APIEndpoints {
         "/api/v1/sessions/\(id.uuidString)/join-token"
     }
 
+    public static func sessionReflection(id: UUID) -> String {
+        "/api/v1/sessions/\(id.uuidString)/reflection"
+    }
+
+    public static func sessionTestimonial(id: UUID) -> String {
+        "/api/v1/sessions/\(id.uuidString)/testimonial"
+    }
+
     // MARK: - URL Resolution Helper
     /// Resolves the absolute URL using the provided base URL or active APIConfig.currentBaseURL.
     public static func url(for endpointPath: String, baseURL: URL = APIConfig.currentBaseURL) -> URL {

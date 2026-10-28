@@ -14,6 +14,7 @@ public enum SessionReminderAlert: Equatable, Sendable, Codable {
     case oneDayBefore(coachName: String)
     case twoHoursBefore
     case safeRoomOpen
+    case postSessionReflection(coachName: String)
 
     /// Human-readable reminder message adhering to zero-anxiety UI specifications.
     public var message: String {
@@ -26,6 +27,10 @@ public enum SessionReminderAlert: Equatable, Sendable, Codable {
             return "Reminder: Session begins in 2 hours."
         case .safeRoomOpen:
             return "Safe Room is open."
+        case .postSessionReflection(let coachName):
+            let trimmed = coachName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let formattedCoach = trimmed.hasPrefix("Coach ") ? trimmed : "Coach \(trimmed)"
+            return "Single-tap to reflect and rate your session with \(formattedCoach)."
         }
     }
 
@@ -38,6 +43,8 @@ public enum SessionReminderAlert: Equatable, Sendable, Codable {
             return "clock.fill"
         case .safeRoomOpen:
             return "door.left.hand.open"
+        case .postSessionReflection:
+            return "star.bubble.fill"
         }
     }
 }
@@ -62,6 +69,8 @@ public struct CoachingSession: Identifiable, Codable, Sendable, Equatable {
     public let timeSlot: String
     public let timeZoneIdentifier: String
     public let status: SessionStatus
+    public let hasReflection: Bool
+    public let reflectionId: UUID?
 
     public init(
         id: UUID = UUID(),
@@ -72,7 +81,9 @@ public struct CoachingSession: Identifiable, Codable, Sendable, Equatable {
         scheduledDate: Date,
         timeSlot: String,
         timeZoneIdentifier: String,
-        status: SessionStatus = .confirmed
+        status: SessionStatus = .confirmed,
+        hasReflection: Bool = false,
+        reflectionId: UUID? = nil
     ) {
         self.id = id
         self.coachAlias = coachAlias
@@ -83,6 +94,8 @@ public struct CoachingSession: Identifiable, Codable, Sendable, Equatable {
         self.timeSlot = timeSlot
         self.timeZoneIdentifier = timeZoneIdentifier
         self.status = status
+        self.hasReflection = hasReflection
+        self.reflectionId = reflectionId
     }
 
     /// Seconds remaining until `scheduledDate` relative to `referenceDate`.
@@ -92,12 +105,22 @@ public struct CoachingSession: Identifiable, Codable, Sendable, Equatable {
 
     /// Evaluates the active in-app reminder alert for this session at `referenceDate`.
     public func reminderAlert(at referenceDate: Date = Date()) -> SessionReminderAlert? {
-        guard status != .completed && status != .cancelled else {
+        if status == .completed {
+            if !hasReflection {
+                return .postSessionReflection(coachName: coachAlias)
+            }
+            return nil
+        }
+
+        guard status != .cancelled else {
             return nil
         }
 
         let remaining = timeRemaining(from: referenceDate)
-        guard remaining > -Self.defaultSessionDurationSeconds else {
+        if remaining <= -Self.defaultSessionDurationSeconds {
+            if !hasReflection {
+                return .postSessionReflection(coachName: coachAlias)
+            }
             return nil
         }
 
