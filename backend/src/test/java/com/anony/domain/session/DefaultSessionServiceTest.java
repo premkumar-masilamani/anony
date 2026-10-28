@@ -290,5 +290,31 @@ class DefaultSessionServiceTest {
     BlindMatchResult result = sessionService.scheduleBlindMatch(command);
     assertEquals("ACC", result.coachIcfLevel());
     assertEquals("SereneGuide", result.coachAlias());
+
+    // Test ACTC + null freeSessionsCount + null preferredTimeWindow
+    CoachEntity coachActc = new CoachEntity();
+    coachActc.setIcfActc(true);
+    template.setCoach(coachActc);
+    client.setFreeSessionsCount(null);
+    client.setLastFreeSessionAt(null);
+    BlindMatchResult resultActc =
+        sessionService.scheduleBlindMatch(new BlindMatchCommand(userId, "Struggle", null, null));
+    assertEquals("ACTC", resultActc.coachIcfLevel());
+
+    // Test CERTIFIED (no ICF flags true)
+    CoachEntity coachNone = new CoachEntity();
+    template.setCoach(coachNone);
+    client.setFreeSessionsCount(0);
+    client.setLastFreeSessionAt(null);
+    BlindMatchResult resultNone = sessionService.scheduleBlindMatch(command);
+    assertEquals("CERTIFIED", resultNone.coachIcfLevel());
+
+    // Test null coachEntity
+    template.setCoach(null);
+    client.setFreeSessionsCount(0);
+    client.setLastFreeSessionAt(null);
+    BlindMatchResult resultNullCoach = sessionService.scheduleBlindMatch(command);
+    assertEquals("CERTIFIED", resultNullCoach.coachIcfLevel());
+    assertEquals("SereneGuide", resultNullCoach.coachAlias());
   }
 }

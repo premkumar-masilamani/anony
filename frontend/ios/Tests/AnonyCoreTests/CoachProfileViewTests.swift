@@ -194,4 +194,19 @@ struct CoachProfileViewTests {
 
         #expect(view.selectedCoachForProfile?.id == targetCoach.id)
     }
+
+    @Test("All seeded coaches have open availability across all 30 calendar days")
+    @MainActor
+    func testAllSeededCoachesHaveThirtyDayAvailability() {
+        for coach in MockCoachService.defaultCoaches {
+            let viewModel = CoachProfileViewModel(coach: coach)
+            #expect(viewModel.calendarDays.count == 30)
+            #expect(coach.slots.count == 30 * 4)
+
+            for day in viewModel.calendarDays {
+                viewModel.selectedDate = day
+                #expect(viewModel.availableSlotsForSelectedDate.count == 4)
+            }
+        }
+    }
 }

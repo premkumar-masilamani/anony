@@ -38,6 +38,10 @@ public enum APIEndpoints {
         "/api/v1/coaches/\(id.uuidString)/slots"
     }
 
+    public static func coachAvailabilities(id: UUID) -> String {
+        "/api/v1/coaches/\(id.uuidString)/availabilities"
+    }
+
     // MARK: - Matching, Sessions & Bookings
     public static let blindMatch = "/api/v1/sessions/blind-match"
     public static let sessions = "/api/v1/sessions"

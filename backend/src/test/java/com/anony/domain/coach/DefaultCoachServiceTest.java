@@ -12,21 +12,33 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.anony.domain.security.PasswordService;
+import com.anony.persistence.entities.AvailabilityTemplateEntity;
+import com.anony.persistence.entities.AvailabilityWindowEntity;
 import com.anony.persistence.entities.CoachDomainEntity;
 import com.anony.persistence.entities.CoachEntity;
 import com.anony.persistence.entities.DomainEntity;
+import com.anony.persistence.entities.SlotEntity;
 import com.anony.persistence.entities.UserEntity;
 import com.anony.persistence.enums.Gender;
 import com.anony.persistence.enums.UserRole;
+import com.anony.persistence.repositories.AvailabilityTemplateRepository;
+import com.anony.persistence.repositories.AvailabilityWindowRepository;
 import com.anony.persistence.repositories.CoachDomainRepository;
 import com.anony.persistence.repositories.CoachRepository;
 import com.anony.persistence.repositories.DomainRepository;
+import com.anony.persistence.repositories.SlotRepository;
 import com.anony.persistence.repositories.UserRepository;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -50,6 +62,15 @@ class DefaultCoachServiceTest {
   private CoachDomainRepository coachDomainRepository;
 
   @Mock
+  private AvailabilityTemplateRepository availabilityTemplateRepository;
+
+  @Mock
+  private AvailabilityWindowRepository availabilityWindowRepository;
+
+  @Mock
+  private SlotRepository slotRepository;
+
+  @Mock
   private PasswordService passwordService;
 
   private DefaultCoachService coachService;
@@ -62,6 +83,9 @@ class DefaultCoachServiceTest {
             coachRepository,
             domainRepository,
             coachDomainRepository,
+            availabilityTemplateRepository,
+            availabilityWindowRepository,
+            slotRepository,
             passwordService);
   }
 
@@ -103,8 +127,20 @@ class DefaultCoachServiceTest {
     domainEntity.setDomainId(UUID.randomUUID());
     domainEntity.setCode("CAREER");
     domainEntity.setName("Career Development");
+    String longDomainName = "VERY_LONG_CUSTOM_COACHING_DOMAIN_SPECIALIZATION_NAME";
     when(domainRepository.findByCodeIgnoreCase("CAREER")).thenReturn(Optional.of(domainEntity));
     when(domainRepository.findByCodeIgnoreCase("UNKNOWN")).thenReturn(Optional.empty());
+    when(domainRepository.findByCodeIgnoreCase(longDomainName)).thenReturn(Optional.empty());
+    when(domainRepository.save(any(DomainEntity.class)))
+        .thenAnswer(
+            invocation -> {
+              DomainEntity inputDomain = invocation.getArgument(0);
+              if ("UNKNOWN".equals(inputDomain.getCode())) {
+                return null;
+              } else {
+                return inputDomain;
+              }
+            });
 
     CoachRegistrationCommand command =
         new CoachRegistrationCommand(
@@ -123,7 +159,7 @@ class DefaultCoachServiceTest {
             false,
             false,
             "ICF-12345",
-            List.of("CAREER", "UNKNOWN", "   "),
+            List.of("CAREER", "UNKNOWN", longDomainName, "   "),
             new BigDecimal("150.00"));
 
     CoachProfileDetails details = coachService.registerCoach(command);
@@ -550,5 +586,241 @@ class DefaultCoachServiceTest {
     when(coachRepository.findByUser_UserId(unknownUserId)).thenReturn(Optional.empty());
     assertThrows(
         IllegalStateException.class, () -> coachService.getCoachProfileByUserId(unknownUserId));
+  }
+
+  @Test
+  @DisplayName("generateUpcomingAvailabilitiesForAllCoaches should create default template and windows when none exist")
+  void testGenerateUpcomingAvailabilitiesWithDefaultTemplateAndWindows() {
+    final UUID coachOneId = UUID.randomUUID();
+    final UUID coachTwoId = UUID.randomUUID();
+
+    CoachEntity coachOne = new CoachEntity();
+    coachOne.setCoachId(coachOneId);
+    coachOne.setTimezone("America/New_York");
+
+    CoachEntity coachTwo = new CoachEntity();
+    coachTwo.setCoachId(coachTwoId);
+    coachTwo.setTimezone("   ");
+
+    when(coachRepository.findAll()).thenReturn(List.of(coachOne, coachTwo));
+    when(availabilityTemplateRepository.findByCoach_CoachId(coachOneId))
+        .thenReturn(Optional.empty());
+    when(availabilityTemplateRepository.findByCoach_CoachId(coachTwoId))
+        .thenReturn(Optional.empty());
+
+    AtomicInteger templateSaveCounter = new AtomicInteger();
+    when(availabilityTemplateRepository.save(any(AvailabilityTemplateEntity.class)))
+        .thenAnswer(
+            invocation -> {
+              AvailabilityTemplateEntity inputTemplate = invocation.getArgument(0);
+              inputTemplate.setAvailabilityTemplateId(UUID.randomUUID());
+              if (templateSaveCounter.getAndIncrement() == 0) {
+                return inputTemplate;
+              } else {
+                return null;
+              }
+            });
+
+    when(availabilityWindowRepository
+            .findByAvailabilityTemplate_AvailabilityTemplateIdOrderByDayOfWeekAscStartTimeAsc(any()))
+        .thenReturn(List.of());
+
+    AtomicInteger windowSaveCounter = new AtomicInteger();
+    when(availabilityWindowRepository.save(any(AvailabilityWindowEntity.class)))
+        .thenAnswer(
+            invocation -> {
+              AvailabilityWindowEntity inputWindow = invocation.getArgument(0);
+              if (windowSaveCounter.getAndIncrement() < 2) {
+                return inputWindow;
+              } else {
+                return null;
+              }
+            });
+
+    when(slotRepository
+            .findByAvailabilityTemplate_AvailabilityTemplateIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(
+                any(), any(Instant.class), any(Instant.class)))
+        .thenReturn(List.of());
+
+    AtomicInteger slotSaveCounter = new AtomicInteger();
+    when(slotRepository.save(any(SlotEntity.class)))
+        .thenAnswer(
+            invocation -> {
+              SlotEntity inputSlot = invocation.getArgument(0);
+              if (slotSaveCounter.getAndIncrement() % 2 == 0) {
+                return inputSlot;
+              } else {
+                return null;
+              }
+            });
+
+    int createdSlots = coachService.generateUpcomingAvailabilitiesForAllCoaches();
+
+    // 2 coaches * 30 days * 6 one-hour slots per day = 360 slots
+    assertEquals(360, createdSlots);
+  }
+
+  @Test
+  @DisplayName("generateUpcomingAvailabilitiesForAllCoaches should handle existing templates, 30-min durations, and overlaps")
+  void testGenerateUpcomingAvailabilitiesWithExistingTemplatesAndOverlaps() {
+    final UUID coachOneId = UUID.randomUUID();
+    final UUID coachTwoId = UUID.randomUUID();
+    final UUID coachThreeId = UUID.randomUUID();
+    final UUID templateOneId = UUID.randomUUID();
+    final UUID templateTwoId = UUID.randomUUID();
+    final UUID templateThreeId = UUID.randomUUID();
+
+    CoachEntity coachOne = new CoachEntity();
+    coachOne.setCoachId(coachOneId);
+    coachOne.setTimezone("Invalid/Timezone_String");
+
+    CoachEntity coachTwo = new CoachEntity();
+    coachTwo.setCoachId(coachTwoId);
+    coachTwo.setTimezone(null);
+
+    CoachEntity coachThree = new CoachEntity();
+    coachThree.setCoachId(coachThreeId);
+    coachThree.setTimezone("UTC");
+
+    when(coachRepository.findAll()).thenReturn(List.of(coachOne, coachTwo, coachThree));
+
+    AvailabilityTemplateEntity templateOne = new AvailabilityTemplateEntity();
+    templateOne.setAvailabilityTemplateId(templateOneId);
+    templateOne.setCoach(coachOne);
+    templateOne.setSlotDurationMinutes((short) 30);
+    templateOne.setActive(true);
+    when(availabilityTemplateRepository.findByCoach_CoachId(coachOneId))
+        .thenReturn(Optional.of(templateOne));
+
+    AvailabilityTemplateEntity templateTwo = new AvailabilityTemplateEntity();
+    templateTwo.setAvailabilityTemplateId(templateTwoId);
+    templateTwo.setCoach(coachTwo);
+    templateTwo.setSlotDurationMinutes(null);
+    templateTwo.setActive(false);
+    when(availabilityTemplateRepository.findByCoach_CoachId(coachTwoId))
+        .thenReturn(Optional.of(templateTwo));
+
+    AvailabilityTemplateEntity templateThree = new AvailabilityTemplateEntity();
+    templateThree.setAvailabilityTemplateId(templateThreeId);
+    templateThree.setCoach(coachThree);
+    templateThree.setSlotDurationMinutes((short) 60);
+    templateThree.setActive(false);
+    when(availabilityTemplateRepository.findByCoach_CoachId(coachThreeId))
+        .thenReturn(Optional.of(templateThree));
+
+    AtomicInteger updateTemplateCounter = new AtomicInteger();
+    when(availabilityTemplateRepository.save(any(AvailabilityTemplateEntity.class)))
+        .thenAnswer(
+            invocation -> {
+              if (updateTemplateCounter.getAndIncrement() == 0) {
+                return invocation.getArgument(0);
+              } else {
+                return null;
+              }
+            });
+
+    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
+    short todayDayOfWeek = (short) todayUtc.getDayOfWeek().getValue();
+
+    AvailabilityWindowEntity validWindow = new AvailabilityWindowEntity();
+    validWindow.setDayOfWeek(todayDayOfWeek);
+    validWindow.setStartTime(LocalTime.of(9, 0));
+    validWindow.setEndTime(LocalTime.of(10, 0));
+
+    AvailabilityWindowEntity nullDayWindow = new AvailabilityWindowEntity();
+    nullDayWindow.setDayOfWeek(null);
+    nullDayWindow.setStartTime(LocalTime.of(11, 0));
+    nullDayWindow.setEndTime(LocalTime.of(12, 0));
+
+    when(availabilityWindowRepository
+            .findByAvailabilityTemplate_AvailabilityTemplateIdOrderByDayOfWeekAscStartTimeAsc(
+                any(UUID.class)))
+        .thenReturn(List.of(validWindow, nullDayWindow));
+
+    Instant existingTodayStart =
+        ZonedDateTime.of(todayUtc, LocalTime.of(9, 0), ZoneOffset.UTC).toInstant();
+    SlotEntity overlappingSlot = new SlotEntity();
+    overlappingSlot.setSlotId(UUID.randomUUID());
+    overlappingSlot.setStartAt(existingTodayStart);
+    overlappingSlot.setEndAt(existingTodayStart.plus(Duration.ofMinutes(30)));
+    overlappingSlot.setFreePledge(true);
+
+    SlotEntity laterSlotSameDay = new SlotEntity();
+    laterSlotSameDay.setSlotId(UUID.randomUUID());
+    laterSlotSameDay.setStartAt(existingTodayStart.plus(Duration.ofHours(5)));
+    laterSlotSameDay.setEndAt(existingTodayStart.plus(Duration.ofHours(6)));
+    laterSlotSameDay.setFreePledge(false);
+
+    SlotEntity differentMonthSlot = new SlotEntity();
+    differentMonthSlot.setSlotId(UUID.randomUUID());
+    differentMonthSlot.setStartAt(existingTodayStart.minus(Duration.ofDays(40)));
+    differentMonthSlot.setEndAt(
+        existingTodayStart.minus(Duration.ofDays(40)).plus(Duration.ofMinutes(60)));
+    differentMonthSlot.setFreePledge(true);
+
+    when(slotRepository
+            .findByAvailabilityTemplate_AvailabilityTemplateIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(
+                any(UUID.class), any(Instant.class), any(Instant.class)))
+        .thenReturn(List.of(overlappingSlot, laterSlotSameDay, differentMonthSlot));
+
+    when(slotRepository.save(any(SlotEntity.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    int createdSlots = coachService.generateUpcomingAvailabilitiesForAllCoaches();
+
+    assertTrue(createdSlots > 0);
+  }
+
+  @Test
+  @DisplayName("getCoachAvailabilities should return unbooked slots and validate parameters")
+  void testGetCoachAvailabilities() {
+    UUID coachId = UUID.randomUUID();
+    CoachEntity coachEntity = new CoachEntity();
+    coachEntity.setCoachId(coachId);
+
+    // Null coachId
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> coachService.getCoachAvailabilities(null, null, null));
+
+    // Coach not found
+    when(coachRepository.findById(coachId)).thenReturn(Optional.empty());
+    assertThrows(
+        IllegalStateException.class,
+        () -> coachService.getCoachAvailabilities(coachId, null, null));
+
+    when(coachRepository.findById(coachId)).thenReturn(Optional.of(coachEntity));
+
+    // Invalid date range (to < from)
+    Instant from = Instant.now().plus(Duration.ofDays(2));
+    Instant toBeforeFrom = from.minus(Duration.ofHours(1));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> coachService.getCoachAvailabilities(coachId, from, toBeforeFrom));
+
+    // Valid query with explicit from & to
+    SlotEntity slotEntity = new SlotEntity();
+    slotEntity.setSlotId(UUID.randomUUID());
+    slotEntity.setStartAt(from.plus(Duration.ofHours(1)));
+    slotEntity.setEndAt(from.plus(Duration.ofHours(2)));
+    slotEntity.setFreePledge(true);
+
+    Instant to = from.plus(Duration.ofDays(7));
+    when(slotRepository.findAvailableSlotsByCoachInWindow(coachId, from, to))
+        .thenReturn(List.of(slotEntity));
+
+    List<CoachAvailabilitySlotDetails> explicitRangeResult =
+        coachService.getCoachAvailabilities(coachId, from, to);
+    assertEquals(1, explicitRangeResult.size());
+    assertEquals(60, explicitRangeResult.get(0).durationMinutes());
+    assertTrue(explicitRangeResult.get(0).isFreePledge());
+
+    // Valid query with null from & to (uses default window)
+    when(slotRepository.findAvailableSlotsByCoachInWindow(
+            any(UUID.class), any(Instant.class), any(Instant.class)))
+        .thenReturn(List.of(slotEntity));
+    List<CoachAvailabilitySlotDetails> openRangeResult =
+        coachService.getCoachAvailabilities(coachId, null, null);
+    assertEquals(1, openRangeResult.size());
   }
 }

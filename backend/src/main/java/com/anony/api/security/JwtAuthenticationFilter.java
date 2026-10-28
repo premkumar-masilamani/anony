@@ -13,6 +13,8 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.Optional;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,6 +28,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
   private static final String AUTHORIZATION_HEADER = "Authorization";
   private static final String BEARER_PREFIX = "Bearer ";
 
@@ -75,13 +78,34 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             authentication.setDetails(
                 new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            LOGGER.debug(
+                "Authenticated HTTP request {} {} as userId={} (role={})",
+                request.getMethod(),
+                request.getRequestURI(),
+                principal.userId(),
+                principal.role());
           } else {
+            LOGGER.warn(
+                "Rejected expired or revoked Bearer token for userId={} on {} {}",
+                principal.userId(),
+                request.getMethod(),
+                request.getRequestURI());
             SecurityContextHolder.clearContext();
           }
         } else {
+          LOGGER.warn(
+              "Rejected Bearer token for non-existent userId={} on {} {}",
+              principal.userId(),
+              request.getMethod(),
+              request.getRequestURI());
           SecurityContextHolder.clearContext();
         }
       } catch (Exception exception) {
+        LOGGER.warn(
+            "Failed to parse or validate Bearer token on {} {}: {}",
+            request.getMethod(),
+            request.getRequestURI(),
+            exception.getMessage());
         SecurityContextHolder.clearContext();
       }
     }

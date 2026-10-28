@@ -8,6 +8,8 @@ import com.anony.domain.client.ClientService;
 import com.anony.domain.security.AuthenticatedUser;
 import com.anony.persistence.enums.UserRole;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,6 +27,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/clients")
 public class ClientController {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(ClientController.class);
 
   private final ClientService clientService;
 
@@ -48,13 +52,19 @@ public class ClientController {
       @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
     if (authenticatedUser != null) {
       if (authenticatedUser.role() == UserRole.CLIENT) {
+        LOGGER.debug("Fetching /api/v1/clients/me for userId={}", authenticatedUser.userId());
         ClientProfileDetails details =
             clientService.getClientProfileByUserId(authenticatedUser.userId());
         return ResponseEntity.ok(toDto(details));
       } else {
+        LOGGER.warn(
+            "Forbidden /api/v1/clients/me request from non-client userId={} (role={})",
+            authenticatedUser.userId(),
+            authenticatedUser.role());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
       }
     } else {
+      LOGGER.warn("Unauthorized /api/v1/clients/me request without principal.");
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
   }
@@ -93,17 +103,29 @@ public class ClientController {
     if (authenticatedUser != null) {
       if (authenticatedUser.role() == UserRole.CLIENT) {
         if (updatePrivacyModeRequest != null && updatePrivacyModeRequest.isAnonymousMode() != null) {
+          LOGGER.info(
+              "Updating privacy mode for userId={} to isAnonymousMode={}",
+              authenticatedUser.userId(),
+              updatePrivacyModeRequest.isAnonymousMode());
           ClientProfileDetails details = clientService.updatePrivacyMode(
               authenticatedUser.userId(),
               updatePrivacyModeRequest.isAnonymousMode());
           return ResponseEntity.ok(toDto(details));
         } else {
+          LOGGER.warn(
+              "Rejected privacy mode update with null isAnonymousMode for userId={}",
+              authenticatedUser.userId());
           return ResponseEntity.badRequest().build();
         }
       } else {
+        LOGGER.warn(
+            "Forbidden privacy mode update from non-client userId={} (role={})",
+            authenticatedUser.userId(),
+            authenticatedUser.role());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
       }
     } else {
+      LOGGER.warn("Unauthorized privacy mode update request without principal.");
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
   }
@@ -117,6 +139,7 @@ public class ClientController {
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<ErrorResponse> handleIllegalArgument(
       IllegalArgumentException illegalArgumentException) {
+    LOGGER.warn("Returning 400 Bad Request from ClientController: {}", illegalArgumentException.getMessage());
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
         .body(new ErrorResponse(illegalArgumentException.getMessage()));
   }
@@ -130,6 +153,7 @@ public class ClientController {
   @ExceptionHandler(IllegalStateException.class)
   public ResponseEntity<ErrorResponse> handleNotFound(
       IllegalStateException illegalStateException) {
+    LOGGER.warn("Returning 404 Not Found from ClientController: {}", illegalStateException.getMessage());
     return ResponseEntity.status(HttpStatus.NOT_FOUND)
         .body(new ErrorResponse(illegalStateException.getMessage()));
   }

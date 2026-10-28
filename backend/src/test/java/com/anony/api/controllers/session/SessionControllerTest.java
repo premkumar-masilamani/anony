@@ -1,11 +1,13 @@
 package com.anony.api.controllers.session;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.anony.api.dtos.session.BlindMatchResponse;
 import com.anony.domain.security.AuthenticatedUser;
 import com.anony.domain.session.BlindMatchCommand;
 import com.anony.domain.session.BlindMatchResult;
@@ -22,7 +24,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
@@ -35,12 +39,13 @@ class SessionControllerTest {
   @Mock
   private SessionService sessionService;
 
+  private SessionController sessionController;
   private MockMvc mockMvc;
 
   @BeforeEach
   void setUp() {
     SecurityContextHolder.clearContext();
-    SessionController sessionController = new SessionController(sessionService);
+    this.sessionController = new SessionController(sessionService);
     this.mockMvc =
         MockMvcBuilders.standaloneSetup(sessionController)
             .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
@@ -284,5 +289,11 @@ class SessionControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload))
         .andExpect(status().isForbidden());
+
+    AuthenticatedUser clientPrincipal =
+        new AuthenticatedUser(userId, "client@example.com", UserRole.CLIENT, UUID.randomUUID());
+    ResponseEntity<BlindMatchResponse> nullRequestResponse =
+        sessionController.scheduleBlindMatch(clientPrincipal, null);
+    assertEquals(HttpStatus.BAD_REQUEST, nullRequestResponse.getStatusCode());
   }
 }

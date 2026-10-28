@@ -10,6 +10,8 @@ import java.util.Date;
 import java.util.UUID;
 import javax.crypto.SecretKey;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
@@ -17,6 +19,8 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class DefaultJwtTokenService implements JwtTokenService {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(DefaultJwtTokenService.class);
 
   private final TokenProperties tokenProperties;
   private final SecretKey signingKey;
@@ -40,6 +44,13 @@ public class DefaultJwtTokenService implements JwtTokenService {
       Instant expirationTimestamp =
           currentTimestamp.plusSeconds(tokenProperties.getExpirationSeconds());
 
+      LOGGER.debug(
+          "Generating signed JWT for userId={}, role={}, tokenId={}, expiresAt={}",
+          userId,
+          role,
+          tokenId,
+          expirationTimestamp);
+
       return Jwts.builder()
           .subject(userId.toString())
           .id(tokenId.toString())
@@ -50,6 +61,7 @@ public class DefaultJwtTokenService implements JwtTokenService {
           .signWith(signingKey)
           .compact();
     } else {
+      LOGGER.warn("Rejected JWT generation due to missing required claims.");
       throw new IllegalArgumentException(
           "User identifier, email, role, and token identifier must all be non-null and non-blank.");
     }
@@ -71,8 +83,15 @@ public class DefaultJwtTokenService implements JwtTokenService {
       String roleString = claims.get("role", String.class);
       UserRole parsedRole = UserRole.valueOf(roleString);
 
+      LOGGER.debug(
+          "Validated JWT claims for userId={}, role={}, tokenId={}",
+          parsedUserId,
+          parsedRole,
+          parsedTokenId);
+
       return new AuthenticatedUser(parsedUserId, extractedEmail, parsedRole, parsedTokenId);
     } else {
+      LOGGER.warn("Rejected JWT validation: token string was blank or null.");
       throw new IllegalArgumentException("Token cannot be blank or null.");
     }
   }

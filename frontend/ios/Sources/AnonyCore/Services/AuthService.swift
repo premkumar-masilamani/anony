@@ -8,6 +8,13 @@ public protocol AuthServiceProtocol: Sendable {
     func fetchCoachProfile() async throws -> CoachProfileResponse
     func updateCoachProfile(payload: CoachUpdatePayload) async throws -> CoachProfileResponse
     func fetchClientProfile() async throws -> ClientProfileResponse
+    func fetchCoachAvailabilities(coachId: UUID, from: Date?, to: Date?) async throws -> [CoachAvailabilitySlotResponse]
+}
+
+extension AuthServiceProtocol {
+    public func fetchCoachAvailabilities(coachId: UUID, from: Date?, to: Date?) async throws -> [CoachAvailabilitySlotResponse] {
+        return []
+    }
 }
 
 /// Data transfer object representing the backend login and registration response payload.
@@ -368,6 +375,57 @@ public final class RemoteAuthService: AuthServiceProtocol, Sendable {
             throw AuthError.unauthorized
         } else {
             let serverError = parseErrorMessage(from: data) ?? "Failed to fetch client profile with status code \(httpResponse.statusCode)."
+            throw AuthError.registrationFailed(serverError)
+        }
+    }
+
+    public func fetchCoachAvailabilities(coachId: UUID, from: Date? = nil, to: Date? = nil) async throws -> [CoachAvailabilitySlotResponse] {
+        let baseEndpointURL = APIEndpoints.url(for: APIEndpoints.coachAvailabilities(id: coachId), baseURL: baseURL)
+        var components = URLComponents(url: baseEndpointURL, resolvingAgainstBaseURL: true)
+
+        let isoFormatter = ISO8601DateFormatter()
+        var queryItems: [URLQueryItem] = []
+        if let fromDate = from {
+            queryItems.append(URLQueryItem(name: "from", value: isoFormatter.string(from: fromDate)))
+        }
+        if let toDate = to {
+            queryItems.append(URLQueryItem(name: "to", value: isoFormatter.string(from: toDate)))
+        }
+        if !queryItems.isEmpty {
+            components?.queryItems = queryItems
+        }
+
+        let requestURL = components?.url ?? baseEndpointURL
+        var request = URLRequest(url: requestURL)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let token = identityService.fetchToken(), !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            throw AuthError.registrationFailed("Network connection failure: \(error.localizedDescription)")
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AuthError.registrationFailed("Invalid server response.")
+        }
+
+        if httpResponse.statusCode == 200 {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            guard let slots = try? decoder.decode([CoachAvailabilitySlotResponse].self, from: data) else {
+                throw AuthError.registrationFailed("Failed to parse coach availability slots.")
+            }
+            return slots
+        } else if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+            throw AuthError.unauthorized
+        } else {
+            let serverError = parseErrorMessage(from: data) ?? "Failed to fetch coach availability slots with status code \(httpResponse.statusCode)."
             throw AuthError.registrationFailed(serverError)
         }
     }

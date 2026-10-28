@@ -33,4 +33,43 @@ public interface SlotRepository extends JpaRepository<SlotEntity, UUID> {
   List<SlotEntity> findAvailableSlotsInWindow(
       @Param("windowStart") Instant windowStart,
       @Param("windowEnd") Instant windowEnd);
+
+  /**
+   * Finds all slots belonging to an availability template within the specified UTC time range.
+   *
+   * @param availabilityTemplateId unique availability template identifier
+   * @param rangeStart inclusive start timestamp in UTC
+   * @param rangeEnd exclusive end timestamp in UTC
+   * @return list of slots ordered by start timestamp ascending
+   */
+  List<SlotEntity>
+      findByAvailabilityTemplate_AvailabilityTemplateIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAtAsc(
+          UUID availabilityTemplateId, Instant rangeStart, Instant rangeEnd);
+
+  /**
+   * Finds unbooked slots for a specific coach within the requested UTC time window.
+   *
+   * @param coachId unique coach identifier
+   * @param windowStart inclusive start timestamp in UTC
+   * @param windowEnd inclusive end timestamp in UTC
+   * @return list of unbooked slots ordered by start timestamp ascending
+   */
+  @Query(
+      """
+      SELECT slotEntity FROM SlotEntity slotEntity
+      WHERE slotEntity.availabilityTemplate.coach.coachId = :coachId
+        AND slotEntity.availabilityTemplate.active = true
+        AND slotEntity.startAt >= :windowStart
+        AND slotEntity.startAt <= :windowEnd
+        AND NOT EXISTS (
+          SELECT sessionEntity FROM SessionEntity sessionEntity
+          WHERE sessionEntity.slot = slotEntity
+            AND sessionEntity.status <> com.anony.persistence.enums.SessionStatus.CANCELLED
+        )
+      ORDER BY slotEntity.startAt ASC
+      """)
+  List<SlotEntity> findAvailableSlotsByCoachInWindow(
+      @Param("coachId") UUID coachId,
+      @Param("windowStart") Instant windowStart,
+      @Param("windowEnd") Instant windowEnd);
 }
