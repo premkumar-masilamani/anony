@@ -12,6 +12,8 @@ import com.anony.domain.session.QuotaExceededException;
 import com.anony.domain.session.SessionService;
 import com.anony.persistence.enums.UserRole;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -27,6 +29,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/sessions")
 public class SessionController {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(SessionController.class);
 
   private final SessionService sessionService;
 
@@ -53,6 +57,11 @@ public class SessionController {
     if (authenticatedUser != null) {
       if (authenticatedUser.role() == UserRole.CLIENT) {
         if (blindMatchRequest != null) {
+          LOGGER.info(
+              "Received blind-match request from userId={} (preferredDate={}, preferredTimeWindow={})",
+              authenticatedUser.userId(),
+              blindMatchRequest.preferredDate(),
+              blindMatchRequest.preferredTimeWindow());
           BlindMatchCommand command = new BlindMatchCommand(
               authenticatedUser.userId(),
               blindMatchRequest.strugglePrompt(),
@@ -60,15 +69,29 @@ public class SessionController {
               blindMatchRequest.preferredDate());
 
           BlindMatchResult matchResult = sessionService.scheduleBlindMatch(command);
+          LOGGER.info(
+              "Scheduled blind-match sessionId={} for userId={} with coachAlias={} at {}",
+              matchResult.sessionId(),
+              authenticatedUser.userId(),
+              matchResult.coachAlias(),
+              matchResult.scheduledTime());
 
           return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(matchResult));
         } else {
+          LOGGER.warn(
+              "Rejected null blind-match request payload from userId={}",
+              authenticatedUser.userId());
           return ResponseEntity.badRequest().build();
         }
       } else {
+        LOGGER.warn(
+            "Forbidden /api/v1/sessions/blind-match request from non-client userId={} (role={})",
+            authenticatedUser.userId(),
+            authenticatedUser.role());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
       }
     } else {
+      LOGGER.warn("Unauthorized /api/v1/sessions/blind-match request without principal.");
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
   }
@@ -82,6 +105,12 @@ public class SessionController {
   @ExceptionHandler(QuotaExceededException.class)
   public ResponseEntity<QuotaExceededErrorResponse> handleQuotaExceeded(
       QuotaExceededException quotaExceededException) {
+    LOGGER.warn(
+        "Returning 409 Conflict (FREE_SESSION_QUOTA_EXCEEDED: reason={}, used={}/{}, daysRemaining={})",
+        quotaExceededException.getReason(),
+        quotaExceededException.getFreeSessionsUsed(),
+        quotaExceededException.getMaxFreeSessions(),
+        quotaExceededException.getDaysRemaining());
     QuotaExceededErrorResponse errorPayload = new QuotaExceededErrorResponse(
         "FREE_SESSION_QUOTA_EXCEEDED",
         quotaExceededException.getReason(),
@@ -103,6 +132,7 @@ public class SessionController {
   @ExceptionHandler(NoAvailableSlotsException.class)
   public ResponseEntity<ErrorResponse> handleNoAvailableSlots(
       NoAvailableSlotsException noAvailableSlotsException) {
+    LOGGER.warn("Returning 404 Not Found from SessionController: {}", noAvailableSlotsException.getMessage());
     return ResponseEntity.status(HttpStatus.NOT_FOUND)
         .body(new ErrorResponse(noAvailableSlotsException.getMessage()));
   }
@@ -116,6 +146,7 @@ public class SessionController {
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<ErrorResponse> handleIllegalArgument(
       IllegalArgumentException illegalArgumentException) {
+    LOGGER.warn("Returning 400 Bad Request from SessionController: {}", illegalArgumentException.getMessage());
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
         .body(new ErrorResponse(illegalArgumentException.getMessage()));
   }
@@ -129,6 +160,7 @@ public class SessionController {
   @ExceptionHandler(IllegalStateException.class)
   public ResponseEntity<ErrorResponse> handleIllegalState(
       IllegalStateException illegalStateException) {
+    LOGGER.warn("Returning 404 Not Found from SessionController: {}", illegalStateException.getMessage());
     return ResponseEntity.status(HttpStatus.NOT_FOUND)
         .body(new ErrorResponse(illegalStateException.getMessage()));
   }

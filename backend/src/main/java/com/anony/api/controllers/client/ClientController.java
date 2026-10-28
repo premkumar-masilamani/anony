@@ -103,17 +103,29 @@ public class ClientController {
     if (authenticatedUser != null) {
       if (authenticatedUser.role() == UserRole.CLIENT) {
         if (updatePrivacyModeRequest != null && updatePrivacyModeRequest.isAnonymousMode() != null) {
+          LOGGER.info(
+              "Updating privacy mode for userId={} to isAnonymousMode={}",
+              authenticatedUser.userId(),
+              updatePrivacyModeRequest.isAnonymousMode());
           ClientProfileDetails details = clientService.updatePrivacyMode(
               authenticatedUser.userId(),
               updatePrivacyModeRequest.isAnonymousMode());
           return ResponseEntity.ok(toDto(details));
         } else {
+          LOGGER.warn(
+              "Rejected privacy mode update with null isAnonymousMode for userId={}",
+              authenticatedUser.userId());
           return ResponseEntity.badRequest().build();
         }
       } else {
+        LOGGER.warn(
+            "Forbidden privacy mode update from non-client userId={} (role={})",
+            authenticatedUser.userId(),
+            authenticatedUser.role());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
       }
     } else {
+      LOGGER.warn("Unauthorized privacy mode update request without principal.");
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
   }

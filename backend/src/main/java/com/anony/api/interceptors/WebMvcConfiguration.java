@@ -1,5 +1,7 @@
 package com.anony.api.interceptors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -9,6 +11,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @Configuration
 public class WebMvcConfiguration implements WebMvcConfigurer {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(WebMvcConfiguration.class);
 
   private final RequestResponseLoggingInterceptor requestResponseLoggingInterceptor;
 
@@ -24,6 +28,7 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
 
   @Override
   public void addInterceptors(InterceptorRegistry interceptorRegistry) {
+    LOGGER.debug("Registering RequestResponseLoggingInterceptor in Spring MVC InterceptorRegistry.");
     interceptorRegistry.addInterceptor(requestResponseLoggingInterceptor);
   }
 }

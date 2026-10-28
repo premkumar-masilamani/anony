@@ -4,6 +4,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,6 +26,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfiguration {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(SecurityConfiguration.class);
 
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
   private final String corsAllowedOrigins;
@@ -50,6 +54,7 @@ public class SecurityConfiguration {
    */
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
+    LOGGER.info("Configuring stateless JWT SecurityFilterChain...");
     httpSecurity
         .cors(corsConfigurer -> corsConfigurer.configurationSource(corsConfigurationSource()))
         .csrf(AbstractHttpConfigurer::disable)
@@ -59,8 +64,14 @@ public class SecurityConfiguration {
         .exceptionHandling(
             exceptionConfigurer ->
                 exceptionConfigurer.authenticationEntryPoint(
-                    (request, response, authException) ->
-                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized")))
+                    (request, response, authException) -> {
+                      LOGGER.warn(
+                          "Unauthorized request to {} {}: {}",
+                          request.getMethod(),
+                          request.getRequestURI(),
+                          authException.getMessage());
+                      response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+                    }))
         .authorizeHttpRequests(
             authorizationConfigurer ->
                 authorizationConfigurer
@@ -105,8 +116,10 @@ public class SecurityConfiguration {
               .filter(StringUtils::isNotBlank)
               .toList();
       configuration.setAllowedOrigins(origins);
+      LOGGER.debug("Configured CORS allowed origins: {}", origins);
     } else {
       configuration.setAllowedOrigins(List.of());
+      LOGGER.warn("No CORS allowed origins configured; defaulting to empty origin list.");
     }
 
     configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));

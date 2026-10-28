@@ -27,6 +27,7 @@ public class RequestResponseLoggingInterceptor implements HandlerInterceptor {
       HttpServletResponse response,
       Object handler) {
     request.setAttribute(START_TIME_ATTRIBUTE, System.currentTimeMillis());
+    LOGGER.debug("Incoming HTTP {} {}", request.getMethod(), resolveRequestUri(request));
     return true;
   }
 

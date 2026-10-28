@@ -143,17 +143,25 @@ public class DefaultClientService implements ClientService {
   @Transactional
   public ClientProfileDetails updatePrivacyMode(UUID userId, boolean isAnonymousMode) {
     if (userId != null) {
+      LOGGER.debug("Updating privacy mode for userId={} to isAnonymousMode={}", userId, isAnonymousMode);
       Optional<ClientEntity> clientOptional = clientRepository.findByUser_UserId(userId);
 
       if (clientOptional.isPresent()) {
         ClientEntity clientEntity = clientOptional.get();
         clientEntity.setAnonymousMode(isAnonymousMode);
         ClientEntity updatedClientEntity = clientRepository.save(clientEntity);
+        LOGGER.info(
+            "Updated privacy mode for clientId={} (userId={}) to isAnonymousMode={}",
+            updatedClientEntity.getClientId(),
+            userId,
+            isAnonymousMode);
         return toClientProfileDetails(updatedClientEntity, updatedClientEntity.getUser());
       } else {
+        LOGGER.warn("Privacy mode update failed: client profile not found for userId={}", userId);
         throw new IllegalStateException("Client profile not found for user identifier: " + userId);
       }
     } else {
+      LOGGER.warn("Privacy mode update rejected: userId was null.");
       throw new IllegalArgumentException("User identifier cannot be null.");
     }
   }

@@ -2,12 +2,16 @@ package com.anony.domain.client;
 
 import java.security.SecureRandom;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Generates random procedural aliases composed of serene/empowering adjectives and nature/creature
  * nouns whose vocabulary maps deterministically to client avatar glyphs.
  */
 public class ProceduralAliasGenerator {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(ProceduralAliasGenerator.class);
 
   /** Curated list of tranquil and empowering adjectives for anonymous client aliases. */
   public static final List<String> ADJECTIVES =
@@ -50,6 +54,8 @@ public class ProceduralAliasGenerator {
   public String generateAlias() {
     String selectedAdjective = ADJECTIVES.get(SECURE_RANDOM.nextInt(ADJECTIVES.size()));
     String selectedNoun = NOUNS.get(SECURE_RANDOM.nextInt(NOUNS.size()));
-    return selectedAdjective + " " + selectedNoun;
+    String generatedAlias = selectedAdjective + " " + selectedNoun;
+    LOGGER.debug("Generated procedural client alias: {}", generatedAlias);
+    return generatedAlias;
   }
 }

@@ -2,6 +2,8 @@ package com.anony.domain.security;
 
 import jakarta.annotation.PostConstruct;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -10,6 +12,8 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class TokenProperties {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(TokenProperties.class);
 
   private final String secret;
   private final long expirationSeconds;
@@ -38,10 +42,11 @@ public class TokenProperties {
             && expirationSeconds > 0;
 
     if (isValidConfiguration) {
-      // Configuration parameters are fully defined and valid
-      org.slf4j.LoggerFactory.getLogger(TokenProperties.class)
-          .debug("JWT configuration properties successfully verified.");
+      LOGGER.info(
+          "JWT configuration properties verified (expirationSeconds={}).",
+          expirationSeconds);
     } else {
+      LOGGER.warn("Invalid JWT configuration properties detected during startup validation.");
       throw new IllegalStateException(
           "JWT configuration properties must be present, expanded, and positive.");
     }

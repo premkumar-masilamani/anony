@@ -1,5 +1,6 @@
 package com.anony.api.controllers.client;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -7,6 +8,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.anony.api.dtos.client.ClientProfileDto;
+import com.anony.api.dtos.client.UpdatePrivacyModeRequest;
 import com.anony.domain.client.ClientProfileDetails;
 import com.anony.domain.client.ClientService;
 import com.anony.domain.security.AuthenticatedUser;
@@ -20,7 +23,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
@@ -33,12 +38,13 @@ class ClientControllerTest {
   @Mock
   private ClientService clientService;
 
+  private ClientController clientController;
   private MockMvc mockMvc;
 
   @BeforeEach
   void setUp() {
     SecurityContextHolder.clearContext();
-    ClientController clientController = new ClientController(clientService);
+    this.clientController = new ClientController(clientService);
     this.mockMvc =
         MockMvcBuilders.standaloneSetup(clientController)
             .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
@@ -189,6 +195,21 @@ class ClientControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload))
         .andExpect(status().isForbidden());
+
+    // Unauthenticated & invalid payloads
+    ResponseEntity<ClientProfileDto> unauthenticatedResponse =
+        clientController.patchPrivacyMode(null, new UpdatePrivacyModeRequest(true));
+    assertEquals(HttpStatus.UNAUTHORIZED, unauthenticatedResponse.getStatusCode());
+
+    AuthenticatedUser clientPrincipal =
+        new AuthenticatedUser(userId, "client@example.com", UserRole.CLIENT, UUID.randomUUID());
+    ResponseEntity<ClientProfileDto> nullPayloadResponse =
+        clientController.patchPrivacyMode(clientPrincipal, null);
+    assertEquals(HttpStatus.BAD_REQUEST, nullPayloadResponse.getStatusCode());
+
+    ResponseEntity<ClientProfileDto> nullFieldResponse =
+        clientController.patchPrivacyMode(clientPrincipal, new UpdatePrivacyModeRequest(null));
+    assertEquals(HttpStatus.BAD_REQUEST, nullFieldResponse.getStatusCode());
   }
 
   @Test

@@ -36,6 +36,7 @@ public class ApiController implements ErrorController {
    */
   @RequestMapping("/")
   public ApiIndexResponse index() {
+    LOGGER.debug("Serving root API index metadata.");
     return new ApiIndexResponse(
         APPLICATION_NAME,
         APPLICATION_VERSION,
