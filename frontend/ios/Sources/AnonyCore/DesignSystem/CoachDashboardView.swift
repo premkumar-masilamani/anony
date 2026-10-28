@@ -99,12 +99,14 @@ public struct CoachDashboardView: View {
     @State private var errorMessage: String? = nil
     @State private var showingEditProfile: Bool = false
     @StateObject private var availabilityViewModel: CoachAvailabilityViewModel
+    @StateObject private var upcomingSessionsViewModel: CoachUpcomingSessionsViewModel
 
     public init(
         coachEmail: String? = nil,
         initialTab: DashboardTab = .availability,
         initialProfile: CoachProfileResponse? = nil,
         authService: AuthServiceProtocol = RemoteAuthService(),
+        upcomingSessionsViewModel: CoachUpcomingSessionsViewModel? = nil,
         onSignOut: @escaping () -> Void
     ) {
         self.coachEmail = coachEmail
@@ -116,6 +118,11 @@ public struct CoachDashboardView: View {
         self._isLoading = State(initialValue: initialProfile == nil)
         self._availabilityViewModel = StateObject(
             wrappedValue: CoachAvailabilityViewModel(authService: authService)
+        )
+        self._upcomingSessionsViewModel = StateObject(
+            wrappedValue: upcomingSessionsViewModel ?? CoachUpcomingSessionsViewModel(
+                sessions: CoachUpcomingSessionsViewModel.defaultDemoSessions()
+            )
         )
     }
 
@@ -351,41 +358,10 @@ public struct CoachDashboardView: View {
 
                 verificationBanner(for: profile)
 
-                GlassCard(style: .elevated, cornerRadius: 16) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack {
-                            HStack(spacing: 8) {
-                                Image(systemName: "calendar.badge.clock")
-                                    .foregroundColor(ColorPalette.coachPrimaryAccent)
-                                Text("Upcoming Sessions Calendar")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(ColorPalette.textPrimary)
-                            }
-                            Spacer()
-                            TagPillView(text: "Live Demo Ready", variant: .sage)
-                        }
-
-                        Text("Clients booking 1-on-1 audio sessions through Anony appear here with their anonymous alias, abstract avatar, and struggle essence.")
-                            .font(.caption)
-                            .foregroundColor(ColorPalette.textSecondary)
-                            .lineSpacing(2)
-
-                        Divider()
-                            .background(ColorPalette.cardBorder)
-
-                        HStack {
-                            Label(profile.timezone, systemImage: "globe")
-                                .font(.caption2)
-                                .foregroundColor(ColorPalette.textMuted)
-                            Spacer()
-                            Text("Safe Room unlocks 10m before start")
-                                .font(.caption2)
-                                .foregroundColor(ColorPalette.coachSecondaryAccent)
-                        }
-                    }
-                    .padding(16)
-                }
+                CoachUpcomingSessionsView(
+                    viewModel: upcomingSessionsViewModel,
+                    coachTimezoneIdentifier: profile.timezone
+                )
                 .padding(.horizontal, 20)
             }
             .padding(.top, 8)
@@ -609,6 +585,7 @@ public struct CoachDashboardView: View {
             do {
                 let profile = try await authService.fetchCoachProfile()
                 self.coachProfile = profile
+                self.upcomingSessionsViewModel.updateCoachTimezone(identifier: profile.timezone)
                 self.isLoading = false
             } catch {
                 self.errorMessage = error.localizedDescription
