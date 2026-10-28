@@ -29,24 +29,12 @@ struct ContentView: View {
     var body: some View {
         Group {
             if isAuthenticated && userRole == "COACH" {
-                if isCoachVerified {
-                    CoachDashboardView(
-                        coachEmail: userEmail,
-                        authService: authService,
-                        onSignOut: performSignOut
-                    )
-                } else {
-                    CoachVerificationPendingView(
-                        coachEmail: userEmail,
-                        authService: authService,
-                        onVerified: {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                isCoachVerified = true
-                            }
-                        },
-                        onSignOut: performSignOut
-                    )
-                }
+                CoachRootFlowView(
+                    isCoachVerified: $isCoachVerified,
+                    coachEmail: userEmail,
+                    authService: authService,
+                    onSignOut: performSignOut
+                )
             } else {
                 ClientRootFlowView(
                     isAuthenticated: $isAuthenticated,

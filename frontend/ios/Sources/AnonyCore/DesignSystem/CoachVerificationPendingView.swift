@@ -1,15 +1,15 @@
 import SwiftUI
 
 /// Screen displayed when a coach has registered but is awaiting verification review.
-/// Displays submitted credentials, status, and allows editing/resubmitting anytime (Issue #2, Issue #17).
+/// Displays submitted credentials, 'Under Review' status indicator, supports pull-to-refresh and polling
+/// against `GET /api/v1/coaches/me`, and allows editing/resubmitting anytime (Issue #2, Issue #17, Issue #18).
 public struct CoachVerificationPendingView: View {
     public let coachEmail: String?
     private let authService: AuthServiceProtocol
     private let onVerified: () -> Void
     private let onSignOut: () -> Void
 
-    @State private var profile: CoachProfileResponse? = nil
-    @State private var statusMessage: String? = nil
+    @StateObject private var viewModel: CoachVerificationViewModel
     @State private var isEditSheetPresented: Bool = false
 
     public init(
@@ -22,6 +22,12 @@ public struct CoachVerificationPendingView: View {
         self.authService = authService
         self.onVerified = onVerified
         self.onSignOut = onSignOut
+        self._viewModel = StateObject(
+            wrappedValue: CoachVerificationViewModel(
+                authService: authService,
+                onVerified: onVerified
+            )
+        )
     }
 
     public var body: some View {
@@ -68,12 +74,12 @@ public struct CoachVerificationPendingView: View {
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 24)
 
-                        // Status Pill
+                        // Status Pill ('Under Review' indicator per Issue #18)
                         HStack(spacing: 6) {
                             Circle()
                                 .fill(ColorPalette.calmingCyan)
                                 .frame(width: 8, height: 8)
-                            Text("Status: Pending Review")
+                            Text("Status: \(viewModel.statusLabel)")
                                 .font(.caption)
                                 .fontWeight(.semibold)
                                 .foregroundColor(ColorPalette.calmingCyan)
@@ -90,7 +96,7 @@ public struct CoachVerificationPendingView: View {
                     }
 
                     // Current Credentials & Profile Card
-                    if let coach = profile {
+                    if let coach = viewModel.profile {
                         GlassCard(style: .elevated, cornerRadius: 20) {
                             VStack(alignment: .leading, spacing: 16) {
                                 // Coach Header
@@ -248,14 +254,14 @@ public struct CoachVerificationPendingView: View {
                         .padding(.horizontal, 20)
                     }
 
-                    // Informative note about editing
-                    Text("Need to make changes? You are free to edit your profile and submit updated credentials at any time.")
+                    // Informative note about editing and pull-to-refresh
+                    Text("Pull down to refresh your verification status, or edit your profile and submit updated credentials at any time.")
                         .font(.caption2)
                         .foregroundColor(ColorPalette.textMuted)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
 
-                    if let message = statusMessage {
+                    if let message = viewModel.statusMessage {
                         Text(message)
                             .font(.caption)
                             .foregroundColor(ColorPalette.calmingCyan)
@@ -264,7 +270,7 @@ public struct CoachVerificationPendingView: View {
 
                     // Action buttons
                     VStack(spacing: 12) {
-                        if let coach = profile {
+                        if let coach = viewModel.profile {
                             AnonyButton(
                                 title: "Edit Profile",
                                 systemImage: "pencil.line",
@@ -275,8 +281,7 @@ public struct CoachVerificationPendingView: View {
                             }
                             .sheet(isPresented: $isEditSheetPresented) {
                                 CoachProfileEditView(profile: coach, authService: authService) { updated in
-                                    self.profile = updated
-                                    self.statusMessage = "Profile updated and resubmitted for review."
+                                    viewModel.applyUpdatedProfile(updated)
                                 }
                             }
                         } else {
@@ -302,10 +307,13 @@ public struct CoachVerificationPendingView: View {
                     .padding(.bottom, 24)
                 }
             }
+            .refreshable {
+                await viewModel.checkVerificationStatus()
+            }
         }
         .preferredColorScheme(.dark)
-        .onAppear {
-            loadInitialProfile()
+        .task {
+            await viewModel.startPolling()
         }
     }
 
@@ -327,19 +335,5 @@ public struct CoachVerificationPendingView: View {
             RoundedRectangle(cornerRadius: 6)
                 .stroke(ColorPalette.sageGreen.opacity(0.3), lineWidth: 1)
         )
-    }
-
-    private func loadInitialProfile() {
-        Task { @MainActor in
-            do {
-                let fetched = try await authService.fetchCoachProfile()
-                self.profile = fetched
-                if fetched.isVerified {
-                    onVerified()
-                }
-            } catch {
-                // If fetching fails, we keep coachEmail fallback
-            }
-        }
     }
 }
