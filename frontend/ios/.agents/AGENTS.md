@@ -40,6 +40,7 @@ make dev
 - Persist authenticated user role (`CLIENT` or `COACH`) in Keychain via `IdentityService` and dynamically route post-login views based on role and verification state (`GET /api/v1/coaches/me`).
 - In Anonymous Blind Match flows, prevent direct coach profile browsing and slot reservation; capture struggle prompts and preferred time windows, presenting confirmed session booking details directly.
 - In `@MainActor` view models (e.g. `CoachAvailabilityViewModel`), annotate shared static constants with `nonisolated` (`nonisolated public static let`) so SwiftUI view initializers can reference them as default parameter values without Swift 6 actor-isolation warnings.
+- Parameterize time-sensitive domain and view model calculations (countdown timers, reminder thresholds, and 10-minute Safe Room entry windows) with an injectable `referenceDate: Date` (`currentDate` on `MySessionsViewModel`) for deterministic unit testing, and explicitly `import Combine` when declaring `Timer.publish(...).autoconnect()` properties in library views.
 
 ### Ask first
 - Introducing third-party Swift Package dependencies beyond `livekit-client-swift`.

@@ -33,6 +33,8 @@ struct APIEndpointsTests {
         #expect(APIEndpoints.coachFavorite(id: testId) == "/api/v1/coaches/11111111-2222-3333-4444-555555555555/favorite")
         #expect(APIEndpoints.coachSlots(id: testId) == "/api/v1/coaches/11111111-2222-3333-4444-555555555555/slots")
         #expect(APIEndpoints.coachAvailabilities(id: testId) == "/api/v1/coaches/11111111-2222-3333-4444-555555555555/availabilities")
+        #expect(APIEndpoints.sessionDetails(id: testId) == "/api/v1/sessions/11111111-2222-3333-4444-555555555555")
+        #expect(APIEndpoints.sessionJoinToken(id: testId) == "/api/v1/sessions/11111111-2222-3333-4444-555555555555/join-token")
     }
 
     @Test("APIEndpoints resolves full URL correctly")

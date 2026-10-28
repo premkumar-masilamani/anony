@@ -51,6 +51,10 @@ public enum APIEndpoints {
         "/api/v1/sessions/\(id.uuidString)"
     }
 
+    public static func sessionJoinToken(id: UUID) -> String {
+        "/api/v1/sessions/\(id.uuidString)/join-token"
+    }
+
     // MARK: - Clients & Profile
     public static let clientProfile = "/api/v1/clients/me/profile"
     public static let clientPrivacyMode = "/api/v1/clients/me/privacy-mode"
