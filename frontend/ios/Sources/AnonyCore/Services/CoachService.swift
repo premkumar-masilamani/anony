@@ -109,7 +109,7 @@ public final class MockCoachService: CoachServiceProtocol, @unchecked Sendable {
         let calendar = Calendar.current
         let baseDate = Date()
         let hoursAndMinutes = [(10, 0), (14, 30), (16, 30), (19, 0)]
-        for dayOffset in 0...7 {
+        for dayOffset in 0..<30 {
             guard let dayDate = calendar.date(byAdding: .day, value: dayOffset, to: baseDate) else { continue }
             for (h, m) in hoursAndMinutes {
                 var comp = calendar.dateComponents([.year, .month, .day], from: dayDate)

@@ -3,6 +3,36 @@ import Testing
 import SwiftUI
 @testable import AnonyCore
 
+private final class AvailabilityMockURLProtocol: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) static var requestHandler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        true
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        guard let handler = AvailabilityMockURLProtocol.requestHandler else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
+
+        do {
+            let (response, data) = try handler(request)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        } catch {
+            client?.urlProtocol(self, didFailWithError: error)
+        }
+    }
+
+    override func stopLoading() {}
+}
+
 private final class MockCoachAvailabilityAuthService: AuthServiceProtocol, @unchecked Sendable {
     var publishedResponsesToReturn: [CoachAvailabilitySlotResponse] = []
     var fetchedResponsesToReturn: [CoachAvailabilitySlotResponse] = []
@@ -267,7 +297,7 @@ struct CoachAvailabilityTests {
     @Test("RemoteAuthService publishes and fetches coach availabilities via MockURLProtocol")
     func testRemoteAuthServiceAvailabilityEndpoints() async throws {
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [MockURLProtocol.self]
+        configuration.protocolClasses = [AvailabilityMockURLProtocol.self]
         let session = URLSession(configuration: configuration)
         let identityService = IdentityService(serviceIdentifier: "com.anony.mobile.test.availabilities")
         _ = identityService.saveSession(
@@ -287,7 +317,7 @@ struct CoachAvailabilityTests {
         let slotId = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
         let startAt = Date(timeIntervalSince1970: 1_809_957_600)
 
-        MockURLProtocol.requestHandler = { request in
+        AvailabilityMockURLProtocol.requestHandler = { request in
             #expect(request.url?.path == "/api/v1/coaches/me/availabilities")
             #expect(request.httpMethod == "POST")
             #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer coach-jwt-token")
@@ -326,7 +356,7 @@ struct CoachAvailabilityTests {
         #expect(published[0].slotId == slotId)
         #expect(published[0].isFreePledge == true)
 
-        MockURLProtocol.requestHandler = { request in
+        AvailabilityMockURLProtocol.requestHandler = { request in
             #expect(request.url?.path == "/api/v1/coaches/\(coachId.uuidString)/availabilities")
             #expect(request.httpMethod == "GET")
             let responseJSON = """

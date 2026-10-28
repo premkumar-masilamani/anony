@@ -38,12 +38,12 @@ public final class CoachProfileViewModel: ObservableObject {
         timeZone.abbreviation(for: Date()) ?? timeZone.identifier
     }
 
-    /// Generates next 7 consecutive calendar dates starting today in the client's timezone.
+    /// Generates next 30 consecutive calendar dates starting today in the client's timezone.
     public var calendarDays: [Date] {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         let today = calendar.startOfDay(for: Date())
-        return (0..<7).compactMap { dayOffset in
+        return (0..<30).compactMap { dayOffset in
             calendar.date(byAdding: .day, value: dayOffset, to: today)
         }
     }
