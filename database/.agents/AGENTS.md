@@ -20,6 +20,7 @@ make connect_database
 - Author any schema updates, new columns, or alterations in a new, separately numbered migration script pair (`XXX_...up.sql` / `XXX_...down.sql`). DB migrations are executed only for new scripts; existing/already-authored migration files must never be retroactively modified.
 - Primary key convention in `anony`: Use UUID primary keys `id UUID PRIMARY KEY DEFAULT gen_random_uuid()` unless specified otherwise in schema specs.
 - Ensure all child tables enforce foreign keys with appropriate `ON DELETE CASCADE` or `ON DELETE RESTRICT` constraints.
+- When seeding live demo slots anchored to `now()` (e.g. `date_trunc('minute', now())`), delete any unbooked rolling slots on the same `availability_template_id` whose `tstzrange(start_at, end_at)` overlaps the demo window before inserting, preventing `slots_no_overlap` GiST exclusion constraint violations regardless of when the script executes.
 
 ### Ask first
 - Any structural schema changes or dropping tables/columns.

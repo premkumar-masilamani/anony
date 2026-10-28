@@ -246,4 +246,50 @@ FROM (VALUES
 JOIN domains ON domains.code = seed.domain_code
 ON CONFLICT DO NOTHING;
 
+-- ============================================================
+-- Pre-scheduled live demo session starting at exact import/recording time (Issue #5)
+-- ============================================================
+DELETE FROM slots
+WHERE availability_template_id = '60000000-0000-4000-8000-000000000001'::UUID
+  AND slot_id <> '80000000-0000-4000-8000-000000000099'::UUID
+  AND tstzrange(start_at, end_at) && tstzrange(
+      date_trunc('minute', now()),
+      date_trunc('minute', now()) + INTERVAL '60 minutes'
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM sessions WHERE sessions.slot_id = slots.slot_id
+  );
+
+INSERT INTO slots (slot_id, availability_template_id, start_at, end_at)
+VALUES (
+    '80000000-0000-4000-8000-000000000099'::UUID,
+    '60000000-0000-4000-8000-000000000001'::UUID,
+    date_trunc('minute', now()),
+    date_trunc('minute', now()) + INTERVAL '60 minutes'
+)
+ON CONFLICT DO NOTHING;
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'slots' AND column_name = 'is_free_pledge'
+    ) THEN
+        EXECUTE 'UPDATE slots SET is_free_pledge = TRUE WHERE slot_id = ''80000000-0000-4000-8000-000000000099''::UUID';
+    END IF;
+END $$;
+
+INSERT INTO sessions (session_id, slot_id, client_id, domain_id, topic, status)
+SELECT
+    '90000000-0000-4000-8000-000000000099'::UUID,
+    '80000000-0000-4000-8000-000000000099'::UUID,
+    '30000000-0000-4000-8000-000000000001'::UUID,
+    domains.domain_id,
+    'Navigating engineering leadership burnout and setting sustainable boundaries.',
+    'CONFIRMED'
+FROM domains
+WHERE domains.code = 'BURNOUT'
+ON CONFLICT DO NOTHING;
+
 COMMIT;

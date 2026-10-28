@@ -35,6 +35,7 @@ make lint
 - When enforcing fair-use quotas (e.g. 14-day cadence cooldown, 6-session lifetime cap), throw domain exceptions translated to HTTP 409 Conflict with structured DTO responses containing exact remaining cooldown days and suggested migration actions.
 - When aggregating or grouping domain records in services (such as evaluating the mandatory 60-minute monthly free session pledge per UTC `YearMonth`), prefer `java.util.List` collections over `java.util.Map` to comply with PMD `LooseCoupling` rules.
 - Include generous structured SLF4J log statements (`DEBUG`, `INFO`, and `WARN`) across all Java classes containing functional logic (controllers, services, schedulers, security filters, and interceptors) so runtime execution, state transitions, and validation/error boundaries are clearly observable.
+- Expose unified RESTful resource creation endpoints (such as `POST /api/v1/sessions` instead of RPC-style action sub-paths like `/book-free` or `/book-paid`) by embedding booking modes (`BookingType.FREE` vs `BookingType.PAID`), domain filters, and slot/coach identifiers in the payload, and enforce atomic slot locking via `@Lock(LockModeType.PESSIMISTIC_WRITE)` plus `DataIntegrityViolationException` translation to HTTP 409 Conflict.
 
 ### Ask first
 - Adding third-party libraries/dependencies to `build.gradle`.

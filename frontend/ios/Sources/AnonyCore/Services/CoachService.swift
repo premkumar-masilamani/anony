@@ -481,9 +481,9 @@ public final class MockCoachService: CoachServiceProtocol, @unchecked Sendable {
         }
     }
 
-    /// Simulates POST request to APIEndpoints.bookings.
+    /// Simulates POST request to APIEndpoints.sessions.
     public func bookSession(coachId: UUID, slot: CoachSlot, clientAlias: String) async throws -> CoachingSession {
-        _ = APIEndpoints.bookings
+        _ = APIEndpoints.sessions
 
         if simulateNetworkDelay {
             try await Task.sleep(nanoseconds: 60_000_000)
@@ -531,9 +531,9 @@ public final class MockCoachService: CoachServiceProtocol, @unchecked Sendable {
         favoriteStorage.getFavorites().contains(coachId)
     }
 
-    /// Simulates POST request to APIEndpoints.blindMatch with semantic struggle prompt.
+    /// Simulates POST request to APIEndpoints.sessions with semantic struggle prompt.
     public func performBlindMatch(prompt: String) async throws -> Coach {
-        _ = APIEndpoints.blindMatch
+        _ = APIEndpoints.sessions
 
         if simulateNetworkDelay {
             try await Task.sleep(nanoseconds: 60_000_000) // 60ms realistic delay
