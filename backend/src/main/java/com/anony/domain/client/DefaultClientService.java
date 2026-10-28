@@ -23,6 +23,7 @@ public class DefaultClientService implements ClientService {
   private final UserRepository userRepository;
   private final ClientRepository clientRepository;
   private final PasswordService passwordService;
+  private final ProceduralAliasGenerator proceduralAliasGenerator = new ProceduralAliasGenerator();
 
   /**
    * Constructs client service with required dependencies.
@@ -66,7 +67,7 @@ public class DefaultClientService implements ClientService {
                 : "Client";
             String alias = StringUtils.isNotBlank(clientRegistrationCommand.alias())
                 ? clientRegistrationCommand.alias().trim()
-                : "Courageous Client";
+                : proceduralAliasGenerator.generateAlias();
 
             ClientEntity clientEntity = new ClientEntity();
             clientEntity.setUser(savedUserEntity);

@@ -67,13 +67,22 @@ public struct ClientProfile: Identifiable, Codable, Sendable, Equatable {
         !hasReachedLifetimeCap && !isCooldownActive(now: now)
     }
 
+    /// Curated list of tranquil and empowering adjectives for anonymous client aliases.
+    public static let adjectives: [String] = [
+        "Courageous", "Tranquil", "Serene", "Gentle", "Calm",
+        "Peaceful", "Silent", "Quiet", "Restful", "Mindful"
+    ]
+
+    /// Curated list of nature and creature nouns that map 1-to-1 to native iOS SF Symbols.
+    public static let nouns: [String] = [
+        "Owl", "Hare", "Tortoise", "Fish", "Fox", "Willow",
+        "Meadow", "River", "Breeze", "Cloud", "Peak", "Star"
+    ]
+
     /// Generates a serene, procedural pseudonym alias derived from tranquil natural metaphors.
     public static func generateTranquilAlias() -> String {
-        let prefixes = ["Tranquil", "Serene", "Gentle", "Calm", "Peaceful", "Silent", "Quiet", "Restful"]
-        let nouns = ["River", "Pine", "Willow", "Breeze", "Creek", "Stone", "Meadow", "Cloud", "Harbor"]
-        let randomPrefix = prefixes.randomElement() ?? "Tranquil"
-        let randomNoun = nouns.randomElement() ?? "Meadow"
-        let randomSuffix = Int.random(in: 10...99)
-        return "\(randomPrefix)\(randomNoun)\(randomSuffix)"
+        let randomAdjective = adjectives.randomElement() ?? "Courageous"
+        let randomNoun = nouns.randomElement() ?? "Owl"
+        return "\(randomAdjective) \(randomNoun)"
     }
 }
