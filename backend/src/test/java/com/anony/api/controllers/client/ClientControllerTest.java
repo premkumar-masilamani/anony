@@ -94,7 +94,7 @@ class ClientControllerTest {
   }
 
   @Test
-  @DisplayName("PATCH /api/v1/clients/me/privacy-mode should return 200 OK and update anonymity mode")
+  @DisplayName("PATCH /api/v1/clients/me should return 200 OK and update anonymity mode")
   void testPatchPrivacyModeSuccess() throws Exception {
     UUID userId = UUID.randomUUID();
     UUID clientId = UUID.randomUUID();
@@ -126,7 +126,7 @@ class ClientControllerTest {
 
     mockMvc
         .perform(
-            patch("/api/v1/clients/me/privacy-mode")
+            patch("/api/v1/clients/me")
                 .principal(authentication)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload))
@@ -135,7 +135,7 @@ class ClientControllerTest {
   }
 
   @Test
-  @DisplayName("PUT /api/v1/clients/me/privacy-mode should return 200 OK and update anonymity mode")
+  @DisplayName("PUT /api/v1/clients/me should return 200 OK and update anonymity mode")
   void testPutPrivacyModeSuccess() throws Exception {
     UUID userId = UUID.randomUUID();
     UUID clientId = UUID.randomUUID();
@@ -167,7 +167,7 @@ class ClientControllerTest {
 
     mockMvc
         .perform(
-            put("/api/v1/clients/me/privacy-mode")
+            put("/api/v1/clients/me")
                 .principal(authentication)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload))
@@ -176,7 +176,7 @@ class ClientControllerTest {
   }
 
   @Test
-  @DisplayName("PATCH /api/v1/clients/me/privacy-mode should return 403 Forbidden for coach")
+  @DisplayName("PATCH /api/v1/clients/me should return 403 Forbidden for coach")
   void testPatchPrivacyModeForbiddenForCoach() throws Exception {
     UUID userId = UUID.randomUUID();
     AuthenticatedUser principal =
@@ -190,7 +190,7 @@ class ClientControllerTest {
 
     mockMvc
         .perform(
-            patch("/api/v1/clients/me/privacy-mode")
+            patch("/api/v1/clients/me")
                 .principal(authentication)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload))

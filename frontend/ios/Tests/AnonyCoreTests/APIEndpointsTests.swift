@@ -19,15 +19,11 @@ struct APIEndpointsTests {
         #expect(APIEndpoints.logout == "/api/v1/auth/logout")
         #expect(APIEndpoints.clientsMe == "/api/v1/clients/me")
         #expect(APIEndpoints.coaches == "/api/v1/coaches")
-        #expect(APIEndpoints.coachesRegister == "/api/v1/coaches/register")
-        #expect(APIEndpoints.coachesLogin == "/api/v1/coaches/login")
         #expect(APIEndpoints.coachesMe == "/api/v1/coaches/me")
         #expect(APIEndpoints.favorites == "/api/v1/coaches/favorites")
         #expect(APIEndpoints.sessions == "/api/v1/sessions")
         #expect(APIEndpoints.blindMatch == "/api/v1/sessions")
         #expect(APIEndpoints.bookings == "/api/v1/sessions")
-        #expect(APIEndpoints.clientProfile == "/api/v1/clients/me/profile")
-        #expect(APIEndpoints.clientPrivacyMode == "/api/v1/clients/me/privacy-mode")
 
         let testId = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
         #expect(APIEndpoints.coachDetails(id: testId) == "/api/v1/coaches/11111111-2222-3333-4444-555555555555")

@@ -2,6 +2,7 @@ import Foundation
 
 /// Data transfer object for coach registration submissions.
 public struct CoachRegistrationPayload: Codable, Sendable, Equatable {
+    public let role: String
     public let email: String
     public let password: String
     public let firstName: String
@@ -37,8 +38,10 @@ public struct CoachRegistrationPayload: Codable, Sendable, Equatable {
         domainCodes: [String] = [],
         timezone: String = TimeZone.current.identifier,
         biography: String? = nil,
-        hourlyRate: Double? = nil
+        hourlyRate: Double? = nil,
+        role: String = "COACH"
     ) {
+        self.role = role
         self.email = email
         self.password = password
         self.firstName = firstName
